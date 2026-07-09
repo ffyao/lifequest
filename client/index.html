@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LifeQuest 人生副本</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <nav class="topbar">
+          <div class="brand">
+            <span class="brand-mark">LQ</span>
+            <span>LifeQuest 人生副本</span>
+          </div>
+          <div class="nav-links">
+            <a href="#dashboard">副本看板</a>
+            <a href="#goals">目标生成</a>
+            <a href="#tasks">任务列表</a>
+            <a href="#badges">徽章墙</a>
+            <a href="#ranking">排行榜</a>
+          </div>
+        </nav>
+        <section class="hero-content">
+          <div>
+            <p class="eyebrow">AI Coding 小组项目 · 游戏化目标管理</p>
+            <h1>把现实目标，变成可挑战的人生副本</h1>
+            <p class="hero-copy">
+              输入长期目标，系统生成主线、支线和每日任务。完成任务即可获得 XP、升级角色、解锁徽章。
+            </p>
+            <div class="hero-actions">
+              <a class="primary-button" href="#goals">开启副本</a>
+              <button class="ghost-button" id="demoLoginButton">使用 Demo 账号</button>
+            </div>
+          </div>
+          <div class="hero-card">
+            <div class="planet"></div>
+            <h2>今日副本难度：★★★</h2>
+            <p id="heroNpc">勇者，今天不需要完美通关，只要推进一个任务。</p>
+          </div>
+        </section>
+      </header>
+
+      <main>
+        <section class="panel auth-panel">
+          <div>
+            <p class="section-label">登录 / 注册</p>
+            <h2>进入你的专属存档</h2>
+          </div>
+          <form id="loginForm" class="inline-form">
+            <input id="usernameInput" value="demo" placeholder="用户名" autocomplete="username" />
+            <input id="passwordInput" value="demo123" type="password" placeholder="密码" autocomplete="current-password" />
+            <button type="submit">登录</button>
+            <button type="button" id="registerButton">注册</button>
+          </form>
+          <p class="hint" id="authHint">默认账号：demo / demo123</p>
+        </section>
+
+        <section id="dashboard" class="grid two-columns">
+          <article class="panel character-card">
+            <p class="section-label">角色面板</p>
+            <h2 id="characterName">读取中...</h2>
+            <p id="characterCareer" class="tag">学习者</p>
+            <div class="level-row">
+              <span id="characterLevel">Lv.1</span>
+              <span id="characterXp">0 XP</span>
+            </div>
+            <div class="xp-bar">
+              <div id="xpBar" class="xp-bar-fill"></div>
+            </div>
+            <div class="stats">
+              <span id="characterCoins">金币 0</span>
+              <span id="characterStreak">连击 0 天</span>
+            </div>
+          </article>
+
+          <article class="panel">
+            <p class="section-label">核心闭环</p>
+            <h2>今日副本看板</h2>
+            <p id="npcMessage" class="npc-message">等待生成今日副本...</p>
+            <div class="progress-grid">
+              <div>
+                <strong id="todoCount">0</strong>
+                <span>未完成</span>
+              </div>
+              <div>
+                <strong id="doneCount">0</strong>
+                <span>已完成</span>
+              </div>
+              <div>
+                <strong id="badgeCount">0</strong>
+                <span>已解锁徽章</span>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section id="goals" class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-label">AI / 模板任务生成</p>
+              <h2>输入长期目标，生成副本任务</h2>
+            </div>
+          </div>
+          <form id="goalForm" class="goal-form">
+            <input id="goalTitle" value="30 天掌握 Vue 项目开发" placeholder="例如：30 天掌握 Vue 项目开发" />
+            <select id="goalCategory">
+              <option>学习</option>
+              <option>健身</option>
+              <option>阅读</option>
+              <option>创作</option>
+              <option>生活</option>
+            </select>
+            <textarea id="goalDescription" placeholder="补充目标背景">希望完成基础语法、组件通信、路由和一个完整小项目。</textarea>
+            <button type="submit">生成副本任务</button>
+          </form>
+        </section>
+
+        <section id="tasks" class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-label">任务列表</p>
+              <h2>主线、支线、每日与 Boss 任务</h2>
+            </div>
+            <button id="refreshButton" class="ghost-button compact">刷新数据</button>
+          </div>
+          <div id="taskList" class="task-list"></div>
+        </section>
+
+        <section class="grid two-columns">
+          <article id="badges" class="panel">
+            <p class="section-label">徽章墙</p>
+            <h2>成就解锁</h2>
+            <div id="badgeList" class="badge-list"></div>
+          </article>
+
+          <article id="ranking" class="panel">
+            <p class="section-label">排行榜</p>
+            <h2>小组经验榜</h2>
+            <div id="rankingList" class="ranking-list"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
