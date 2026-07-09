@@ -23,7 +23,8 @@ member-tasks/03-成员C-AI扩展成就系统与测试素材.md
 ## Git Rules
 
 - Use SSH remote: `git@gitee.com:tidehope/lifequest.git`.
-- SSH is already configured. Do not switch the remote to HTTPS.
+- The member accounts have been added to the Gitee repository as administrators.
+- Use each member account's SSH setup to connect to Gitee. Do not switch the remote to HTTPS.
 - Work only on your assigned feature branch.
 - Do not push directly to `main` or `dev`.
 - Do not use `git push --force`.

@@ -1,19 +1,24 @@
 # 给成员 AI 的启动提示词
 
-> 使用方式：每位成员把对应段落复制给自己的 AI 编程助手。AI 开始开发前必须先拉取仓库，并确认使用 SSH 连接 Gitee。
+> 使用方式：每位成员把“通用前置提示词”和自己对应的任务提示词复制给自己的 AI 编程助手。成员 AI 具备终端和文件权限，可以直接按提示词 clone 仓库、切换分支、修改代码、运行测试、提交并推送。
 
 ## 通用前置提示词
 
 ```text
-你将参与 LifeQuest 人生副本任务系统开发。项目远程仓库是 git@gitee.com:tidehope/lifequest.git，本机 SSH 已配置完善，请使用 SSH 连接 Gitee，不要改成 HTTPS。
+你将参与 LifeQuest 人生副本任务系统开发。项目远程仓库是 git@gitee.com:tidehope/lifequest.git。我的 Gitee 账号已由组长添加为该仓库管理员。你具备终端和文件权限，可以直接使用 SSH 拉取、开发、提交和推送代码。请使用 SSH 连接 Gitee，不要改成 HTTPS。
+
+如果当前目录还没有仓库，请你自己执行：
+git clone git@gitee.com:tidehope/lifequest.git
+cd lifequest
+
+如果 SSH 连接失败，请停止并告诉我需要检查我的 Gitee SSH Key，不要把 remote 改成 HTTPS。
 
 开始前请先执行：
-1. git clone git@gitee.com:tidehope/lifequest.git
-2. cd lifequest
-3. 阅读 AGENTS.md
-4. 阅读 member-tasks/AI协作总则.md
-5. 阅读 member-tasks/00-项目统一说明.md
-6. 阅读我对应的成员任务书
+1. 确认当前在 lifequest 仓库根目录
+2. 阅读 AGENTS.md
+3. 阅读 member-tasks/AI协作总则.md
+4. 阅读 member-tasks/00-项目统一说明.md
+5. 阅读我对应的成员任务书
 
 开发规则：
 - 只在我对应的 feature 分支工作。

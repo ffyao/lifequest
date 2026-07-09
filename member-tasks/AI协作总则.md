@@ -9,7 +9,9 @@ Gitee 仓库：git@gitee.com:tidehope/lifequest.git
 Web 地址：https://gitee.com/tidehope/lifequest
 ```
 
-本机 SSH 已经配置完成，请使用 SSH 连接 Gitee，不要改用 HTTPS：
+组长已将成员账号添加为 Gitee 仓库管理员。成员 AI 具备终端和文件权限，可以直接拉取、开发、提交和推送自己的 feature 分支。
+
+请使用 SSH 连接 Gitee，不要改用 HTTPS：
 
 ```bash
 ssh -T git@gitee.com
@@ -21,9 +23,16 @@ ssh -T git@gitee.com
 Hi TideHope(@tidehope)! You've successfully authenticated, but GITEE.COM does not provide shell access.
 ```
 
-如果 SSH 失败，先不要改代码，先向组长反馈。
+如果 SSH 失败，先不要改代码，先向成员或组长反馈。SSH Key 是按账号和机器配置的，不要为了绕过 SSH 问题把远程地址改成 HTTPS。
 
 ## 2. AI 执行前必须确认
+
+如果当前还没有本地仓库，先执行：
+
+```bash
+git clone git@gitee.com:tidehope/lifequest.git
+cd lifequest
+```
 
 开始任何开发前，请在仓库根目录执行：
 
@@ -52,7 +61,7 @@ feature/backend-crud     成员 B 后端分支
 feature/ai-badges        成员 C AI/徽章/素材分支
 ```
 
-成员 AI 必须在对应分支工作：
+成员 AI 必须在对应分支工作。例如成员 A：
 
 ```bash
 git fetch origin
