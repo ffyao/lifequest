@@ -14,38 +14,17 @@
 - 完善截图素材清单。
 - 更新协作文档中的 AI 使用记录。
 
-## 2. 开始前必须执行
+## 2. 通用执行流程
 
-成员账号已被组长添加为 Gitee 仓库管理员。成员 AI 具备终端和文件权限时，可以直接执行以下命令拉取仓库。请使用 SSH，不要改用 HTTPS。
+开始前请先按 `member-tasks/AI协作总则.md` 完成 SSH、clone、分支、基线测试检查。
 
-如果当前还没有本地仓库，先执行：
-
-```bash
-git clone git@gitee.com:tidehope/lifequest.git
-cd lifequest
-```
-
-```bash
-git fetch origin
-git checkout feature/ai-badges
-git pull --ff-only origin feature/ai-badges
-git status --short --branch
-npm test
-```
-
-确认远程是 SSH：
-
-```bash
-git remote -v
-```
-
-必须看到：
+你的工作分支是：
 
 ```text
-git@gitee.com:tidehope/lifequest.git
+feature/ai-badges
 ```
 
-如果不是 SSH，或者 SSH 认证失败，不要继续开发，先反馈成员或组长。
+本任务书只描述你的模块目标、文件范围和验收标准；Git 命令、提交、推送、PR 规则均以 `member-tasks/AI协作总则.md` 为准。
 
 ## 3. 你优先修改的文件
 
@@ -228,40 +207,13 @@ docs/协作文档.md
 - AI Prompt 迭代如何记录。
 - AI 审查和截图如何作为过程佐证。
 
-## 9. 提交前必须执行
+## 9. 提交前检查
 
-```bash
-npm test
-```
+按 `member-tasks/AI协作总则.md` 执行通用提交前检查。
 
-如果只改文档，也仍然运行 `npm test`，确保没有误改代码。
+额外要求：如果你修改了本任务书列出的页面或服务，请在最终回复中说明人工检查结果或未检查原因。
 
-如果修改了 `aiService.js`，还应启动项目检查任务生成：
-
-```bash
-npm run dev
-```
-
-打开：
-
-```text
-http://localhost:3000
-```
-
-检查目标生成任务是否仍可用。
-
-## 10. 提交和推送
-
-```bash
-git status --short
-git add server/services/aiService.js server/services/database.js server/services/badgeService.js docs screenshots member-tasks/03-成员C-AI扩展成就系统与测试素材.md
-git commit -m "docs: add AI prompt and evidence plan"
-git push origin feature/ai-badges
-```
-
-如果没有修改某些文件，不要强行 `git add` 不存在或未改文件。
-
-## 11. 最终回复给成员的内容
+## 10. 最终回复给成员的内容
 
 完成后必须输出：
 

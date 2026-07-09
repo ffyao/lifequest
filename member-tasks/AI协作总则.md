@@ -1,54 +1,41 @@
 # LifeQuest 成员 AI 协作总则
 
-> 本文档写给成员使用的 AI 编程助手。请先完整阅读，再开始修改代码。
+> 本文件是成员 AI 的唯一通用操作规范。Git、SSH、分支、测试、提交、推送、PR 和禁止事项均以本文为准。
 
-## 1. 项目远程仓库
-
-```text
-Gitee 仓库：git@gitee.com:tidehope/lifequest.git
-Web 地址：https://gitee.com/tidehope/lifequest
-```
-
-组长已将成员账号添加为 Gitee 仓库管理员。成员 AI 具备终端和文件权限，可以直接拉取、开发、提交和推送自己的 feature 分支。
-
-请使用 SSH 连接 Gitee，不要改用 HTTPS：
-
-```bash
-ssh -T git@gitee.com
-```
-
-预期输出类似：
+## 1. 仓库和权限
 
 ```text
-Hi TideHope(@tidehope)! You've successfully authenticated, but GITEE.COM does not provide shell access.
+Gitee SSH：git@gitee.com:tidehope/lifequest.git
+Gitee Web：https://gitee.com/tidehope/lifequest
 ```
 
-如果 SSH 失败，先不要改代码，先向成员或组长反馈。SSH Key 是按账号和机器配置的，不要为了绕过 SSH 问题把远程地址改成 HTTPS。
+组长已将成员账号添加为 Gitee 仓库管理员。成员 AI 具备终端和文件权限，可以直接使用 SSH 拉取、开发、提交和推送自己的 feature 分支。
 
-## 2. AI 执行前必须确认
+不要把远程地址改成 HTTPS。如果 SSH 失败，先停止并提示成员检查自己的 Gitee SSH Key，不要继续改代码。
 
-如果当前还没有本地仓库，先执行：
+## 2. 标准启动流程
+
+如果当前还没有本地仓库：
 
 ```bash
 git clone git@gitee.com:tidehope/lifequest.git
 cd lifequest
 ```
 
-开始任何开发前，请在仓库根目录执行：
+确认远程和分支：
 
 ```bash
 pwd
-git status --short --branch
 git remote -v
+git status --short --branch
 git branch -vv
 ```
 
-确认：
+远程必须是：
 
-- 当前目录是 `lifequest`。
-- 远程仓库是 `git@gitee.com:tidehope/lifequest.git`。
-- 当前分支是自己负责的功能分支。
-- 工作区没有未理解的未提交改动。
+```text
+git@gitee.com:tidehope/lifequest.git
+```
 
 ## 3. 分支分配
 
@@ -61,41 +48,20 @@ feature/backend-crud     成员 B 后端分支
 feature/ai-badges        成员 C AI/徽章/素材分支
 ```
 
-成员 AI 必须在对应分支工作。例如成员 A：
+切换到自己的分支后再开发：
 
 ```bash
 git fetch origin
-git checkout feature/frontend-ui
-git pull --ff-only origin feature/frontend-ui
+git checkout <your-feature-branch>
+git pull --ff-only origin <your-feature-branch>
+npm test
 ```
 
-成员 B、C 分别替换为自己的分支名。
+如果修改前 `npm test` 已失败，先记录失败信息并反馈组长，不要直接修无关问题。
 
-## 4. 禁止事项
+## 4. 文件负责边界
 
-成员 AI 不得执行以下行为：
-
-- 不要直接向 `main` 或 `dev` 提交开发代码。
-- 不要使用 `git push --force`。
-- 不要使用 `git reset --hard` 删除他人工作。
-- 不要删除项目文档和成员任务书。
-- 不要提交 `server/data/*.sqlite`。
-- 不要提交真实 API Key、Token、账号密码。
-- 不要私自改数据库字段和 API 路径。
-- 不要把项目重构成完全不同技术栈。
-- 不要为完成个人模块破坏核心流程。
-
-如确实需要改公共结构，必须在最终说明里明确写出：
-
-```text
-需要组长确认：我改动了公共 API / 数据库字段 / 核心业务规则。
-```
-
-## 5. 文件负责边界
-
-### 成员 A：前端页面与游戏化视觉
-
-优先修改：
+成员 A 优先修改：
 
 ```text
 client/index.html
@@ -103,89 +69,58 @@ client/styles.css
 client/app.js
 ```
 
-不要修改：
-
-```text
-server/services/database.js
-server/services/gameService.js
-server/services/taskService.js
-```
-
-### 成员 B：后端基础业务模块
-
-优先修改：
+成员 B 优先修改：
 
 ```text
 server/services/api.js
 server/services/goalService.js
-server/services/userService.js
-server/services/httpUtils.js
+server/services/taskService.js
 server/tests/
+docs/API接口规范.md
 ```
 
-谨慎修改：
-
-```text
-server/services/database.js
-```
-
-不要修改：
-
-```text
-client/styles.css
-docs/架构设计.md
-```
-
-### 成员 C：AI 扩展、徽章、素材
-
-优先修改：
+成员 C 优先修改：
 
 ```text
 server/services/aiService.js
-server/services/database.js
-screenshots/README.md
-docs/协作文档.md
-docs/审查报告.md
+docs/
+screenshots/
 ```
 
-谨慎修改：
+公共结构包括：
 
 ```text
-server/services/badgeService.js
-client/app.js
+数据库字段
+API 路径
+XP 和等级规则
+徽章解锁规则
+项目技术栈
 ```
 
-不要修改：
+修改公共结构前必须先向组长确认。
 
-```text
-server/services/gameService.js
-server/services/taskService.js
-```
+## 5. 禁止事项
 
-## 6. 开发前同步
+- 不要直接向 `main` 或 `dev` 提交开发代码。
+- 不要使用 `git push --force`。
+- 不要使用 `git reset --hard` 删除未理解的改动。
+- 不要删除项目文档和成员任务书。
+- 不要提交 `server/data/*.sqlite`。
+- 不要提交真实 API Key、Token、账号密码。
+- 不要把项目重构成完全不同技术栈。
+- 不要为了个人模块破坏核心演示链路。
 
-每次开发前执行：
+## 6. 开发要求
 
-```bash
-git fetch origin
-git pull --ff-only
-npm test
-```
-
-如果 `npm test` 在修改前就失败，不要直接修无关问题，先记录并反馈组长。
-
-## 7. 开发中要求
-
-- 修改要小步提交，避免一次性大改。
-- 保持原有代码风格。
+- 修改要小步、聚焦、可解释。
+- 保持现有代码风格。
 - 优先复用现有函数和数据结构。
-- 新增接口或字段必须有说明。
-- 修改后优先运行最相关测试。
-- 不要为了视觉或文案修改破坏业务链路。
+- 新增接口、字段、依赖必须在最终说明里写清楚。
+- 如果某项任务无法完成，不要伪造结果，在最终说明中标为风险。
 
-## 8. 提交前检查
+## 7. 提交前检查
 
-提交前必须执行：
+所有成员提交前必须执行：
 
 ```bash
 npm test
@@ -193,28 +128,30 @@ git status --short
 git diff --stat
 ```
 
-如果修改了前端，还应执行：
+如果修改了前端页面，还必须执行：
 
 ```bash
 npm run dev
 ```
 
-并人工打开：
+并检查：
 
 ```text
 http://localhost:3000
 ```
 
-至少检查：
+前端检查至少覆盖：
 
-- 首页可打开。
-- 登录区域正常显示。
-- 任务列表不报错。
-- 核心页面没有明显样式崩坏。
+```text
+首页可打开
+Demo 登录入口可见
+任务列表不报错
+核心页面没有明显样式崩坏
+```
 
-## 9. 提交规范
+## 8. 提交和推送
 
-提交信息使用以下格式：
+提交信息格式：
 
 ```text
 feat: 新增功能
@@ -229,20 +166,14 @@ chore: 配置或杂项
 示例：
 
 ```bash
-git add .
-git commit -m "style: polish dashboard game ui"
-git push
+git add <changed-files>
+git commit -m "style: polish dashboard game UI"
+git push origin <your-feature-branch>
 ```
 
-## 10. 推送规范
+只推送自己的 feature 分支，不要推送 `main` 或 `dev`。
 
-只推送自己的功能分支：
-
-```bash
-git push origin feature/frontend-ui
-```
-
-不要推送到 `main` 或 `dev`。
+## 9. PR 规则
 
 推送后，在 Gitee 创建 Pull Request：
 
@@ -251,7 +182,7 @@ git push origin feature/frontend-ui
 目标分支：dev
 ```
 
-## 11. PR 描述必须包含
+PR 描述必须包含：
 
 ```text
 完成内容：
@@ -272,7 +203,7 @@ git push origin feature/frontend-ui
 - 是否有未完成风险
 ```
 
-## 12. 核心验收标准
+## 10. 核心验收标准
 
 任何成员修改后，都不能破坏以下链路：
 
