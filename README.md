@@ -32,8 +32,15 @@ npm test
 协作规则见：
 
 ```text
+AGENTS.md
 CONTRIBUTING.md
 member-tasks/
+```
+
+给成员 AI 的启动提示词：
+
+```text
+member-tasks/给成员AI的启动提示词.md
 ```
 
 推荐分支：

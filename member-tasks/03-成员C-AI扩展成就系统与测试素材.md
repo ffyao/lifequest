@@ -1,74 +1,129 @@
-# 成员 C 任务书：AI 扩展、成就系统与测试素材
+# 成员 C AI 任务书：AI 扩展、成就系统与测试素材
 
-## 1. 你的职责
+> 本任务书写给成员 C 的 AI 编程助手。请严格按本文档执行，重点增强 AI 特色、徽章文案和提交素材，不要破坏任务完成和 XP 计算逻辑。
 
-你负责 LifeQuest 的 AI 创意扩展、成就徽章内容、NPC 文案和测试素材整理。目标是让项目更符合“大模型编程”主题，并让答辩展示更有趣。
+## 1. 你的身份和目标
 
-## 2. 你需要先了解
+你是 LifeQuest 项目的 AI 内容和素材 AI。你的目标是让项目更符合“大模型编程”课程主题，并为答辩准备足够的 AI 过程佐证。
 
-当前 AI/模板逻辑在：
+重点成果：
+
+- 提供可直接接入大模型的 Prompt 文档。
+- 丰富本地模板生成内容。
+- 优化徽章和 NPC 文案。
+- 完善截图素材清单。
+- 更新协作文档中的 AI 使用记录。
+
+## 2. 开始前必须执行
+
+```bash
+git fetch origin
+git checkout feature/ai-badges
+git pull --ff-only origin feature/ai-badges
+git status --short --branch
+npm test
+```
+
+确认远程是 SSH：
+
+```bash
+git remote -v
+```
+
+必须看到：
+
+```text
+git@gitee.com:tidehope/lifequest.git
+```
+
+如果不是 SSH，不要继续开发，先反馈组长。
+
+## 3. 你优先修改的文件
 
 ```text
 server/services/aiService.js
+docs/协作文档.md
+docs/审查报告.md
+screenshots/README.md
+member-tasks/03-成员C-AI扩展成就系统与测试素材.md
 ```
 
-徽章逻辑在：
+可以新增：
 
 ```text
-server/services/badgeService.js
+docs/AI-Prompt设计.md
+docs/截图清单.md
+```
+
+谨慎修改：
+
+```text
 server/services/database.js
+server/services/badgeService.js
 ```
 
-AI 生成记录保存在：
+禁止修改：
 
 ```text
-ai_logs
+server/services/gameService.js
+server/services/taskService.js
+server/services/api.js
+client/app.js
 ```
 
-## 3. 主要任务
+## 4. 任务 C1：新增 AI Prompt 设计文档
 
-### 3.1 设计 AI Prompt
+新增：
 
-设计一个可以发给大模型的 Prompt，用于根据长期目标生成任务。
+```text
+docs/AI-Prompt设计.md
+```
 
-要求 AI 返回 JSON，格式参考：
+文档必须包含：
+
+- Prompt 目标。
+- 输入字段。
+- 输出 JSON Schema。
+- 完整 Prompt 示例。
+- 学习类目标示例输出。
+- 健身类目标示例输出。
+- AI 输出失败时的兜底策略。
+
+输出 JSON 必须兼容当前任务结构：
 
 ```json
 {
-  "npcMessage": "勇者，今天的学习副本已经开启。",
+  "npcMessage": "勇者，今天的副本已经开启。",
   "tasks": [
     {
       "type": "main",
       "difficulty": "normal",
-      "title": "掌握 Vue 基础语法",
-      "description": "学习模板语法、响应式数据和事件绑定。",
+      "title": "任务标题",
+      "description": "任务描述",
       "xpReward": 40
     }
   ]
 }
 ```
 
-任务类型必须是：
+## 5. 任务 C2：丰富本地模板
+
+修改：
 
 ```text
-main
-side
-daily
-boss
+server/services/aiService.js
 ```
 
-难度必须是：
+要求：
 
-```text
-easy
-normal
-hard
-boss
-```
+- 保留现有 `templates` 结构。
+- 每类至少保留 5 个任务。
+- 每类至少 4 条 NPC 文案。
+- 可以增加关键词。
+- 不要改变 `generateTasks` 返回结构。
+- 不要让 `npm test` 失败。
 
-### 3.2 扩展本地模板
-
-当前已有分类：
+当前分类：
 
 ```text
 学习
@@ -78,127 +133,135 @@ boss
 生活
 ```
 
-你可以继续丰富每类模板：
-
-- 更多任务标题。
-- 更多任务描述。
-- 更多 NPC 鼓励语。
-- 更多关键词匹配。
-
-注意：
-
-- 不要破坏 JSON 结构。
-- 不要删除已有模板。
-- 每类最好至少有 5 个任务。
-
-### 3.3 设计徽章内容
-
-至少补充或优化 8 个徽章：
+建议扩展：
 
 ```text
-首次启程
-目标制定者
-副本挑战者
-连击达人
-主线推进者
-Boss 击破者
-清晨勇者
-深夜修炼者
-经验收集者
-成长冒险家
+考试
+编程
+英语
+减脂
+早睡
+写作
 ```
 
-每个徽章需要：
+可以通过关键词映射到现有分类，不一定新增大分类。
+
+## 6. 任务 C3：优化徽章内容
+
+如需修改徽章文案，优先修改：
 
 ```text
-名称
-说明
+server/services/database.js
+```
+
+可以优化：
+
+```text
+徽章名称
+徽章说明
 Emoji 图标
-解锁条件
 ```
 
-如果要新增真实解锁条件，先和组长确认。
-
-### 3.4 准备 NPC 文案
-
-至少准备以下场景文案：
-
-- 创建目标后。
-- 生成任务后。
-- 完成普通任务后。
-- 完成 Boss 任务后。
-- 升级后。
-- 解锁徽章后。
-- 连续打卡后。
-
-文案风格：
-
-- 游戏化。
-- 鼓励式。
-- 不要太长。
-- 适合页面展示。
-
-### 3.5 整理测试和截图素材
-
-需要协助整理：
+不要轻易新增复杂解锁条件。若新增条件，必须同步修改：
 
 ```text
-AI 需求分析截图
-AI 架构设计截图
-AI 代码生成截图
-AI 代码审查截图
-项目首页截图
-副本看板截图
-任务生成截图
-任务完成截图
-徽章墙截图
-排行榜截图
+server/services/badgeService.js
 ```
 
-截图命名建议：
+并补充测试说明。
+
+## 7. 任务 C4：完善截图清单
+
+更新：
+
+```text
+screenshots/README.md
+```
+
+或新增：
+
+```text
+docs/截图清单.md
+```
+
+必须列出：
 
 ```text
 01-需求分析-AI交互.png
-02-架构设计-AI交互.png
-03-代码生成-AI交互.png
-04-代码审查-AI交互.png
-05-首页截图.png
-06-副本看板截图.png
-07-任务生成截图.png
-08-任务完成截图.png
-09-徽章墙截图.png
-10-排行榜截图.png
+02-选题讨论-AI交互.png
+03-架构设计-AI交互.png
+04-代码生成-AI交互.png
+05-代码审查-AI交互.png
+06-Gitee协作截图.png
+07-首页截图.png
+08-副本看板截图.png
+09-任务生成截图.png
+10-任务完成截图.png
+11-徽章墙截图.png
+12-排行榜截图.png
 ```
 
-## 4. 不建议你做
+每张截图说明用途：放在哪份文档或 PPT 哪一页。
 
-- 不要改后端 API 路径。
-- 不要改数据库字段。
-- 不要改 XP 计算逻辑。
-- 不要接入不稳定 API 影响演示。
+## 8. 任务 C5：更新协作文档
 
-## 5. 你的交付物
-
-- AI Prompt 文档。
-- 本地模板补充。
-- 徽章/NPC 文案。
-- 测试截图和 AI 交互截图。
-- 简短说明：AI 在项目中的作用。
-
-## 6. 验收标准
-
-- 至少有一套完整 AI Prompt。
-- 本地模板仍能正常生成任务。
-- 文案有游戏化氛围。
-- 截图素材能用于文档和 PPT。
-- 不影响 `npm test`。
-
-## 7. 完成后汇报格式
+更新：
 
 ```text
-我完成了：
-新增文案/模板：
-截图材料：
+docs/协作文档.md
+```
+
+补充：
+
+- 使用 Gitee SSH 协作。
+- 使用成员 AI 分工开发。
+- 每个成员 AI 的任务边界。
+- AI Prompt 迭代如何记录。
+- AI 审查和截图如何作为过程佐证。
+
+## 9. 提交前必须执行
+
+```bash
+npm test
+```
+
+如果只改文档，也仍然运行 `npm test`，确保没有误改代码。
+
+如果修改了 `aiService.js`，还应启动项目检查任务生成：
+
+```bash
+npm run dev
+```
+
+打开：
+
+```text
+http://localhost:3000
+```
+
+检查目标生成任务是否仍可用。
+
+## 10. 提交和推送
+
+```bash
+git status --short
+git add server/services/aiService.js server/services/database.js server/services/badgeService.js docs screenshots member-tasks/03-成员C-AI扩展成就系统与测试素材.md
+git commit -m "docs: add AI prompt and evidence plan"
+git push origin feature/ai-badges
+```
+
+如果没有修改某些文件，不要强行 `git add` 不存在或未改文件。
+
+## 11. 最终回复给成员的内容
+
+完成后必须输出：
+
+```text
+完成内容：
 修改文件：
-还存在的问题：
+测试结果：
+新增 Prompt 或模板：
+截图素材建议：
+是否改动公共结构：
+需要组长注意：
 ```
