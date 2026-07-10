@@ -12,10 +12,10 @@ http://localhost:3000
 
 ```text
 Content-Type: application/json
-X-User-Id: 1
+Authorization: Bearer <登录或注册返回的 token>
 ```
 
-说明：当前课程原型使用 `X-User-Id` 模拟登录态，正式版本应替换为 JWT 或 Session。
+说明：除注册、登录接口外，业务接口都需要登录后携带 `Authorization` 请求头。未登录访问会返回 `401 UNAUTHORIZED`。
 
 ## 2. 用户接口
 
@@ -30,7 +30,8 @@ POST /api/auth/register
 ```json
 {
   "username": "demo",
-  "password": "demo123"
+  "password": "demo123",
+  "activationCode": "LIFEQUEST-ADV-300"
 }
 ```
 
@@ -38,9 +39,11 @@ POST /api/auth/register
 
 ```json
 {
+  "token": "session-token",
   "user": {
     "id": 1,
     "username": "demo",
+    "role": "user",
     "createdAt": "2026-07-09 10:00:00"
   }
 }
@@ -65,9 +68,11 @@ POST /api/auth/login
 
 ```json
 {
+  "token": "session-token",
   "user": {
     "id": 1,
     "username": "demo",
+    "role": "user",
     "createdAt": "2026-07-09 10:00:00"
   }
 }
@@ -79,7 +84,71 @@ POST /api/auth/login
 GET /api/auth/me
 ```
 
-## 3. 角色接口
+## 3. 管理员激活码接口
+
+管理员默认账号：
+
+```text
+用户名：admin
+密码：admin123456
+```
+
+系统默认高级激活码：
+
+```text
+LIFEQUEST-ADV-300
+```
+
+该高级激活码最多可激活 300 个账号。普通激活码只能激活 1 个账号，被使用后不会出现在有效普通激活码列表中。
+
+### 查看有效激活码
+
+```text
+GET /api/admin/activation-codes
+```
+
+响应：
+
+```json
+{
+  "advancedCodes": [
+    {
+      "code": "LIFEQUEST-ADV-300",
+      "type": "advanced",
+      "remainingUses": 299,
+      "maxUses": 300,
+      "createdAt": "2026-07-10 10:00:00"
+    }
+  ],
+  "normalCodes": [
+    {
+      "code": "LQ-ABCD-1234-EF56",
+      "type": "normal",
+      "remainingUses": 1,
+      "maxUses": 1,
+      "createdAt": "2026-07-10 10:00:00"
+    }
+  ]
+}
+```
+
+### 生成激活码
+
+```text
+POST /api/admin/activation-codes
+```
+
+请求：
+
+```json
+{
+  "type": "normal"
+}
+```
+
+说明：`type` 可为 `normal` 或 `advanced`。`normal` 可激活 1 个账号，`advanced` 可激活 300 个账号。
+
+## 4. 角色接口
 
 ### 查询角色
 
@@ -120,7 +189,7 @@ PUT /api/character
 }
 ```
 
-## 4. 目标接口
+## 5. 目标接口
 
 ### 查询目标列表
 
@@ -238,7 +307,7 @@ DELETE /api/goals/:id
 404 GOAL_NOT_FOUND       目标不存在或不属于当前用户
 ```
 
-## 5. 任务接口
+## 6. 任务接口
 
 ### 查询任务列表
 
@@ -388,7 +457,7 @@ DELETE /api/tasks/:id
 404 TASK_NOT_FOUND        任务不存在或不属于当前用户
 ```
 
-## 6. 徽章接口
+## 7. 徽章接口
 
 ```text
 GET /api/badges
@@ -396,7 +465,7 @@ GET /api/badges
 
 返回全部徽章和当前用户已解锁徽章。
 
-## 7. 排行榜接口
+## 8. 排行榜接口
 
 ```text
 GET /api/ranking
@@ -413,7 +482,7 @@ level
 xp
 ```
 
-## 8. AI 日志接口
+## 9. AI 日志接口
 
 ```text
 GET /api/ai/logs

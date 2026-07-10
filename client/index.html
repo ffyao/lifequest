@@ -206,6 +206,10 @@
               <svg class="icon icon-xs"><use href="#i-ranking"/></svg>
               排行榜
             </a>
+            <a href="#admin" class="nav-link admin-only is-hidden" data-view-link="admin">
+              <svg class="icon icon-xs"><use href="#i-key"/></svg>
+              激活码管理
+            </a>
           </div>
         </nav>
 
@@ -332,6 +336,7 @@
             <div class="input-group">
               <input id="usernameInput" value="demo" placeholder="输入用户名" autocomplete="username" class="input-field" />
               <input id="passwordInput" value="demo123" type="password" placeholder="输入密码" autocomplete="current-password" class="input-field" />
+              <input id="activationCodeInput" value="LIFEQUEST-ADV-300" placeholder="注册时填写激活码" autocomplete="off" class="input-field" />
             </div>
             <div class="btn-group">
               <button type="submit" class="btn-primary btn-sm">
@@ -341,12 +346,15 @@
               <button type="button" id="registerButton" class="btn-secondary btn-sm">
                 注册账号
               </button>
+              <button type="button" id="logoutButton" class="btn-secondary btn-sm">
+                退出
+              </button>
             </div>
           </form>
           
           <p class="auth-hint" id="authHint">
             <svg class="icon icon-xs"><use href="#i-bulb"/></svg>
-            <span>默认账号：demo / demo123</span>
+            <span>默认账号：demo / demo123；管理员：admin / admin123456</span>
           </p>
         </section>
 
@@ -551,6 +559,50 @@
             <h2>勇者排行榜</h2>
           </div>
           <div id="rankingList" class="ranking-list"></div>
+        </section>
+
+        <!-- 激活码管理 -->
+        <section id="admin" class="panel admin-panel glass-panel view-page admin-only is-hidden" data-view="admin">
+          <div class="panel-header-wide with-action">
+            <div>
+              <p class="section-label">管理员工具</p>
+              <h2>激活码管理</h2>
+            </div>
+            <button id="refreshActivationCodesButton" class="btn-icon-only" title="刷新激活码">
+              <svg class="icon icon-sm"><use href="#i-refresh"/></svg>
+            </button>
+          </div>
+
+          <div class="admin-actions">
+            <button type="button" id="createNormalCodeButton" class="btn-primary btn-sm">
+              生成普通激活码
+            </button>
+            <button type="button" id="createAdvancedCodeButton" class="btn-secondary btn-sm">
+              生成高级激活码
+            </button>
+          </div>
+
+          <p id="adminHint" class="auth-hint">
+            普通激活码只能注册 1 个账号；高级激活码最多注册 300 个账号。
+          </p>
+
+          <div class="admin-code-layout">
+            <article class="code-panel">
+              <div class="panel-header-center">
+                <p class="section-label">高级激活码</p>
+                <h3>剩余激活次数</h3>
+              </div>
+              <div id="advancedCodeList" class="code-list"></div>
+            </article>
+
+            <article class="code-panel">
+              <div class="panel-header-center">
+                <p class="section-label">普通激活码</p>
+                <h3>当前有效列表</h3>
+              </div>
+              <div id="normalCodeList" class="code-list"></div>
+            </article>
+          </div>
         </section>
       </main>
     </div>

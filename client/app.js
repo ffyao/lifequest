@@ -47,7 +47,9 @@ function starsRow(total, filled) {
 // State
 // =============================================
 const state = {
-  userId: Number(localStorage.getItem('lifequest:userId') || 1),
+  userId: null,
+  user: null,
+  authToken: localStorage.getItem('lifequest:authToken') || '',
   character: null,
   tasks: [],
   badges: [],
@@ -57,7 +59,8 @@ const state = {
   currentView: 'home'
 };
 
-const validViews = new Set(['home', 'auth', 'dashboard', 'goals', 'tasks', 'badges', 'ranking']);
+const validViews = new Set(['home', 'auth', 'dashboard', 'goals', 'tasks', 'badges', 'ranking', 'admin']);
+const protectedViews = new Set(['dashboard', 'goals', 'tasks', 'badges', 'ranking', 'admin']);
 
 // =============================================
 // DOM Cache
@@ -71,8 +74,10 @@ const elements = {
 
   loginForm: document.querySelector('#loginForm'),
   registerButton: document.querySelector('#registerButton'),
+  logoutButton: document.querySelector('#logoutButton'),
   usernameInput: document.querySelector('#usernameInput'),
   passwordInput: document.querySelector('#passwordInput'),
+  activationCodeInput: document.querySelector('#activationCodeInput'),
   authHint: document.querySelector('#authHint'),
 
   goalForm: document.querySelector('#goalForm'),
@@ -99,6 +104,13 @@ const elements = {
   taskList: document.querySelector('#taskList'),
   badgeList: document.querySelector('#badgeList'),
   rankingList: document.querySelector('#rankingList'),
+  adminOnly: document.querySelectorAll('.admin-only'),
+  refreshActivationCodesButton: document.querySelector('#refreshActivationCodesButton'),
+  createNormalCodeButton: document.querySelector('#createNormalCodeButton'),
+  createAdvancedCodeButton: document.querySelector('#createAdvancedCodeButton'),
+  adminHint: document.querySelector('#adminHint'),
+  advancedCodeList: document.querySelector('#advancedCodeList'),
+  normalCodeList: document.querySelector('#normalCodeList'),
 
   toast: document.querySelector('.toast-container'),
   toastMessage: document.querySelector('.toast-message')
@@ -122,22 +134,30 @@ elements.loginForm.addEventListener('submit', async (event) => {
 elements.registerButton.addEventListener('click', async () => {
   const username = elements.usernameInput.value.trim();
   const password = elements.passwordInput.value;
-  if (!username || !password) {
-    showToast('请输入用户名和密码');
+  const activationCode = elements.activationCodeInput.value.trim();
+  if (!username || !password || !activationCode) {
+    showToast('注册需要用户名、密码和激活码');
     return;
   }
   try {
     const response = await api('/api/auth/register', {
       method: 'POST',
-      body: { username, password }
+      body: { username, password, activationCode }
     });
-    setUser(response.user);
+    setSession(response.user, response.token);
     showToast(`注册成功：${response.user.username}`);
     await refreshAll();
     navigateTo('dashboard');
   } catch (error) {
     console.error('Registration failed:', error);
+    showToast(error.message || '注册失败');
   }
+});
+
+elements.logoutButton.addEventListener('click', () => {
+  clearSession();
+  showToast('已退出登录');
+  navigateTo('auth');
 });
 
 elements.goalForm.addEventListener('submit', async (event) => {
@@ -170,6 +190,7 @@ elements.goalForm.addEventListener('submit', async (event) => {
     navigateTo('tasks');
   } catch (error) {
     console.error('Task generation failed:', error);
+    showToast(error.message || '生成任务失败');
   }
 });
 
@@ -185,6 +206,20 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     state.taskFilter = btn.dataset.filter;
     renderTasks();
   });
+});
+
+elements.refreshActivationCodesButton.addEventListener('click', async () => {
+  if (await loadActivationCodes()) {
+    showToast('激活码列表已刷新');
+  }
+});
+
+elements.createNormalCodeButton.addEventListener('click', async () => {
+  await createActivationCode('normal');
+});
+
+elements.createAdvancedCodeButton.addEventListener('click', async () => {
+  await createActivationCode('advanced');
 });
 
 window.addEventListener('hashchange', () => {
@@ -207,25 +242,52 @@ async function login() {
       method: 'POST',
       body: { username, password }
     });
-    setUser(response.user);
+    setSession(response.user, response.token);
     showToast(`欢迎回来，${response.user.username}`);
     await refreshAll();
     navigateTo('dashboard');
   } catch (error) {
     console.error('Login failed:', error);
+    showToast(error.message || '登录失败');
   }
 }
 
-function setUser(user) {
+function setSession(user, token) {
+  if (token) {
+    state.authToken = token;
+    localStorage.setItem('lifequest:authToken', token);
+  }
+  state.user = user;
   state.userId = user.id;
-  localStorage.setItem('lifequest:userId', String(user.id));
+  localStorage.removeItem('lifequest:userId');
   elements.authHint.innerHTML = `
     <svg class="icon icon-xs"><use href="#i-check"/></svg>
-    <span>当前用户：<strong>${escapeHtml(user.username)}</strong>（ID: ${Number(user.id)}）</span>
+    <span>当前用户：<strong>${escapeHtml(user.username)}</strong>（${user.role === 'admin' ? '管理员' : '普通用户'}）</span>
   `;
+  updateAdminVisibility();
+}
+
+function clearSession() {
+  state.authToken = '';
+  state.userId = null;
+  state.user = null;
+  state.character = null;
+  state.tasks = [];
+  state.badges = [];
+  state.userBadges = [];
+  state.ranking = [];
+  localStorage.removeItem('lifequest:authToken');
+  localStorage.removeItem('lifequest:userId');
+  updateAdminVisibility();
+  renderLoggedOutState();
 }
 
 async function refreshAll() {
+  if (!state.authToken) {
+    renderLoggedOutState();
+    return;
+  }
+
   try {
     const [characterData, taskData, badgeData, rankingData] = await Promise.all([
       api('/api/character'),
@@ -247,8 +309,47 @@ async function refreshAll() {
     renderRanking();
   } catch (error) {
     console.error('Refresh failed:', error);
-    showToast('刷新失败，请检查网络连接');
+    if (error.code === 'UNAUTHORIZED' || error.code === 'SESSION_EXPIRED') {
+      clearSession();
+      navigateTo('auth');
+    }
+    showToast(error.message || '刷新失败，请检查网络连接');
   }
+}
+
+function renderLoggedOutState() {
+  elements.authHint.innerHTML = `
+    <svg class="icon icon-xs"><use href="#i-bulb"/></svg>
+    <span>请先登录或使用激活码注册。默认账号：demo / demo123；管理员：admin / admin123456</span>
+  `;
+  elements.characterName.textContent = '请先登录';
+  elements.characterCareer.textContent = '未进入系统';
+  elements.characterLevel.textContent = 'Lv.0';
+  elements.characterXp.textContent = '0 XP';
+  elements.characterCoins.textContent = '0';
+  elements.characterStreak.textContent = '0';
+  elements.xpBar.style.width = '0%';
+  elements.xpToNext.textContent = '100';
+  elements.todoCount.textContent = '0';
+  elements.doneCount.textContent = '0';
+  elements.badgeCount.textContent = '0';
+  elements.npcMessage.textContent = '登录后才能查看你的副本进度';
+  elements.heroNpc.textContent = '登录后才能查看你的副本进度';
+  elements.taskList.innerHTML = loggedOutEmptyState('任务列表需要登录后查看');
+  elements.badgeList.innerHTML = loggedOutEmptyState('徽章墙需要登录后查看');
+  elements.rankingList.innerHTML = loggedOutEmptyState('排行榜需要登录后查看');
+  elements.advancedCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看高级激活码');
+  elements.normalCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看普通激活码');
+}
+
+function loggedOutEmptyState(message) {
+  return `
+    <div class="empty-state" style="grid-column: 1 / -1;">
+      <div class="empty-icon">${ICONS.lock}</div>
+      <h3>需要登录</h3>
+      <p class="hint">${escapeHtml(message)}</p>
+    </div>
+  `;
 }
 
 // =============================================
@@ -514,23 +615,94 @@ function renderRanking() {
   }).join('');
 }
 
+async function loadActivationCodes() {
+  if (state.user?.role !== 'admin') return false;
+
+  try {
+    const data = await api('/api/admin/activation-codes');
+    renderActivationCodes(data);
+    return true;
+  } catch (error) {
+    console.error('Load activation codes failed:', error);
+    showToast(error.message || '加载激活码失败');
+    return false;
+  }
+}
+
+async function createActivationCode(type) {
+  if (state.user?.role !== 'admin') {
+    showToast('只有管理员可以生成激活码');
+    return;
+  }
+
+  try {
+    const data = await api('/api/admin/activation-codes', {
+      method: 'POST',
+      body: { type }
+    });
+    renderActivationCodes(data);
+    showToast(`已生成${type === 'advanced' ? '高级' : '普通'}激活码：${data.activationCode.code}`);
+  } catch (error) {
+    console.error('Create activation code failed:', error);
+    showToast(error.message || '生成激活码失败');
+  }
+}
+
+function renderActivationCodes({ advancedCodes = [], normalCodes = [] }) {
+  elements.advancedCodeList.innerHTML = advancedCodes.length
+    ? advancedCodes.map(code => renderCodeCard(code)).join('')
+    : emptyCodeState('暂无有效高级激活码');
+
+  elements.normalCodeList.innerHTML = normalCodes.length
+    ? normalCodes.map(code => renderCodeCard(code)).join('')
+    : emptyCodeState('暂无有效普通激活码');
+}
+
+function renderCodeCard(code) {
+  return `
+    <article class="code-card">
+      <strong>${escapeHtml(code.code)}</strong>
+      <span>类型：${code.type === 'advanced' ? '高级激活码' : '普通激活码'}</span>
+      <span>剩余次数：${Number(code.remainingUses)} / ${Number(code.maxUses)}</span>
+      <span>创建时间：${escapeHtml(code.createdAt || '未知')}</span>
+    </article>
+  `;
+}
+
+function emptyCodeState(message) {
+  return `
+    <div class="empty-state">
+      <div class="empty-icon">${ICONS.lock}</div>
+      <h3>暂无数据</h3>
+      <p class="hint">${escapeHtml(message)}</p>
+    </div>
+  `;
+}
+
 // =============================================
 // Utilities
 // =============================================
 
 async function api(path, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  if (state.authToken) {
+    headers.Authorization = `Bearer ${state.authToken}`;
+  }
+
   const response = await fetch(path, {
     method: options.method || 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-User-Id': String(state.userId)
-    },
+    headers,
     body: options.body ? JSON.stringify(options.body) : undefined
   });
 
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(payload.message || '请求失败');
+    const error = new Error(payload.message || '请求失败');
+    error.code = payload.error;
+    throw error;
   }
   return payload;
 }
@@ -569,7 +741,15 @@ function navigateTo(view) {
 }
 
 function setActiveView(view) {
-  const targetView = validViews.has(view) ? view : 'home';
+  let targetView = validViews.has(view) ? view : 'home';
+  if (protectedViews.has(targetView) && !state.authToken) {
+    targetView = 'auth';
+  }
+  if (targetView === 'admin' && state.user && state.user.role !== 'admin') {
+    targetView = 'dashboard';
+    showToast('只有管理员可以访问激活码管理');
+  }
+
   state.currentView = targetView;
   document.body.dataset.view = targetView;
 
@@ -581,7 +761,22 @@ function setActiveView(view) {
     link.classList.toggle('active', link.dataset.viewLink === targetView);
   });
 
+  if (targetView === 'admin') {
+    loadActivationCodes();
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateAdminVisibility() {
+  const isAdmin = state.user?.role === 'admin';
+  elements.adminOnly.forEach(element => {
+    element.classList.toggle('is-hidden', !isAdmin);
+  });
+
+  if (!isAdmin && state.currentView === 'admin') {
+    navigateTo(state.authToken ? 'dashboard' : 'auth');
+  }
 }
 
 function escapeHtml(value) {
@@ -612,12 +807,32 @@ function animateValue(element, targetValue) {
   requestAnimationFrame(update);
 }
 
+async function init() {
+  updateAdminVisibility();
+  setActiveView(getViewFromHash());
+
+  if (!state.authToken) {
+    renderLoggedOutState();
+    return;
+  }
+
+  try {
+    const response = await api('/api/auth/me');
+    setSession(response.user);
+    await refreshAll();
+    setActiveView(getViewFromHash());
+  } catch (error) {
+    console.error('Session restore failed:', error);
+    clearSession();
+    navigateTo('auth');
+    showToast('登录状态已失效，请重新登录');
+  }
+}
+
 // =============================================
 // Init
 // =============================================
-setActiveView(getViewFromHash());
-
-refreshAll().catch(error => {
+init().catch(error => {
   console.error('Initialization failed:', error);
   showToast('初始化失败，请确认后端服务已启动');
 });

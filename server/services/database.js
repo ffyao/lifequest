@@ -21,7 +21,30 @@ function migrate(database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS activation_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL CHECK (type IN ('normal', 'advanced')),
+      remainingUses INTEGER NOT NULL,
+      maxUses INTEGER NOT NULL,
+      createdBy INTEGER,
+      usedBy INTEGER,
+      usedAt TEXT,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (createdBy) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (usedBy) REFERENCES users(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS characters (
@@ -94,6 +117,7 @@ function migrate(database) {
       FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
+  ensureColumn(database, 'users', 'role', "TEXT NOT NULL DEFAULT 'user'");
 }
 
 function seed(database) {
@@ -108,6 +132,15 @@ function seed(database) {
   const demoUser = database.prepare('SELECT id FROM users WHERE username = ?').get('demo');
   const aliceUser = database.prepare('SELECT id FROM users WHERE username = ?').get('alice');
   const bobUser = database.prepare('SELECT id FROM users WHERE username = ?').get('bob');
+  const adminUser = ensureSeedUser(database, 'admin', 'admin123456', 'admin');
+
+  ensureSeedActivationCode(database, {
+    code: 'LIFEQUEST-ADV-300',
+    type: 'advanced',
+    remainingUses: 300,
+    maxUses: 300,
+    createdBy: adminUser.id
+  });
 
   const characterCount = database.prepare('SELECT COUNT(*) AS count FROM characters').get().count;
   if (characterCount === 0) {
@@ -157,6 +190,43 @@ function seed(database) {
   }
 
   awardInitialBadges(database, demoUser.id);
+}
+
+function ensureColumn(database, tableName, columnName, definition) {
+  const columns = database.prepare(`PRAGMA table_info(${tableName})`).all();
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+  database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+}
+
+function ensureSeedUser(database, username, password, role) {
+  const existing = database
+    .prepare('SELECT id, username, role FROM users WHERE username = ?')
+    .get(username);
+  if (existing) {
+    database.prepare('UPDATE users SET password = ?, role = ? WHERE id = ?').run(password, role, existing.id);
+    return { ...existing, role };
+  }
+
+  const result = database
+    .prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)')
+    .run(username, password, role);
+  return { id: Number(result.lastInsertRowid), username, role };
+}
+
+function ensureSeedActivationCode(database, { code, type, remainingUses, maxUses, createdBy }) {
+  const existing = database.prepare('SELECT id FROM activation_codes WHERE code = ?').get(code);
+  if (existing) {
+    return;
+  }
+
+  database
+    .prepare(`
+      INSERT INTO activation_codes (code, type, remainingUses, maxUses, createdBy)
+      VALUES (?, ?, ?, ?, ?)
+    `)
+    .run(code, type, remainingUses, maxUses, createdBy);
 }
 
 function awardInitialBadges(database, userId) {

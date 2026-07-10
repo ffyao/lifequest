@@ -6,10 +6,53 @@ const database = initializeDatabase();
 const context = createAppContext(database);
 const suffix = Date.now();
 
-const user = context.userService.register({
-  username: `tester-${suffix}`,
-  password: 'test1234'
+const adminLogin = context.userService.login({
+  username: 'admin',
+  password: 'admin123456'
 });
+assert.equal(adminLogin.user.role, 'admin');
+assert.ok(adminLogin.token);
+
+assert.throws(
+  () => context.userService.register({
+    username: `no-code-${suffix}`,
+    password: 'test1234'
+  }),
+  (error) => error.code === 'ACTIVATION_CODE_REQUIRED' && error.statusCode === 400
+);
+
+const normalCode = context.userService.createActivationCode(adminLogin.user.id, { type: 'normal' });
+const registered = context.userService.register({
+  username: `tester-${suffix}`,
+  password: 'test1234',
+  activationCode: normalCode.code
+});
+const user = registered.user;
+assert.ok(registered.token);
+
+assert.throws(
+  () => context.userService.register({
+    username: `reuse-code-${suffix}`,
+    password: 'test1234',
+    activationCode: normalCode.code
+  }),
+  (error) => error.code === 'INVALID_ACTIVATION_CODE' && error.statusCode === 400
+);
+
+const advancedCode = context.userService.createActivationCode(adminLogin.user.id, { type: 'advanced' });
+const advancedBefore = advancedCode.remainingUses;
+const advancedUser = context.userService.register({
+  username: `advanced-${suffix}`,
+  password: 'test1234',
+  activationCode: advancedCode.code
+});
+assert.ok(advancedUser.token);
+const activationCodes = context.userService.listActivationCodes();
+const advancedAfter = activationCodes.advancedCodes.find((code) => code.code === advancedCode.code);
+assert.equal(advancedAfter.remainingUses, advancedBefore - 1);
+assert.ok(activationCodes.normalCodes.every((code) => code.code !== normalCode.code));
+
+console.log('认证测试通过：注册需激活码、普通码一次性、高级码递减、管理员可生成和查看激活码');
 
 context.gameService.createOrUpdateCharacter(user.id, {
   nickname: '测试勇者',
