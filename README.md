@@ -1,54 +1,64 @@
 # LifeQuest 人生副本任务系统
 
-LifeQuest 是一个游戏化目标管理 Web 应用。用户可以创建人生角色、点击头像选择图片文件作为头像，填写目标后由 DeepSeek 生成主线、Boss、可选每日和可选支线副本任务。用户完成任务后获得经验值、提升等级并解锁徽章。
+LifeQuest 是一个带有游戏化体验的目标管理 Web 应用。用户输入学习、健身、阅读、创作或生活类目标后，系统可以调用 DeepSeek 大模型生成“人生副本任务”，并通过主线任务、每日任务、支线任务、Boss 任务、经验值、等级、徽章和排行榜，让目标执行过程更有反馈感。
+
+## 项目介绍与价值
+
+- **目标管理游戏化**：把普通目标拆成副本任务，用 XP、等级、金币、徽章和排行榜提升行动动力。
+- **AI 生成任务**：管理员统一配置 DeepSeek API Key 后，普通用户无需配置密钥即可生成个性化任务。
+- **目标任务中心**：每个目标会保存对应任务，目标列表按创建时间倒序展示，刷新后会恢复上次选择的目标。
+- **通关机制**：目标进度由主线任务和 Boss 任务决定，全部完成后目标通关。
+- **账号与激活码**：支持用户名密码登录、注册激活码、7 天会话、管理员激活码管理。
+- **本地易部署**：使用原生前端、Node.js HTTP Server 和 Node 内置 SQLite，不依赖复杂后端框架。
 
 ## 技术栈
 
-- 前端：原生 HTML/CSS/JavaScript 单页应用原型
+- 前端：原生 HTML、CSS、JavaScript
 - 后端：Node.js HTTP Server
 - 数据库：Node.js 内置 SQLite
-- AI：DeepSeek `deepseek-v4-flash` 对话补全接口，管理员全局 API Key 配置
+- AI 模型：DeepSeek `deepseek-v4-flash`
+- 包管理器：npm
 
-## 快速启动
+## 环境依赖
 
-```bash
-npm run dev
-```
+- Node.js `>= 22.5.0`
+- npm `>= 10`
+- 现代浏览器，如 Chrome、Edge、Firefox
 
-启动后访问：
+说明：项目使用 Node.js 内置 SQLite，不需要额外安装 MySQL、PostgreSQL 或 SQLite 命令行工具。
 
-```text
-http://localhost:3000
-```
+## 本地运行
 
-注意：本地开发服务是 HTTP，不要使用 `https://localhost:3000`。如果浏览器提示 `SSL_ERROR_RX_RECORD_TOO_LONG`，请确认地址栏是 `http://localhost:3000`。
-
-## 测试
-
-```bash
-npm test
-```
-
-## 部署方法
-
-### 本地演示部署
+克隆项目：
 
 ```bash
 git clone git@gitee.com:tidehope/lifequest.git
 cd lifequest
+```
+
+安装依赖：
+
+```bash
 npm install
+```
+
+启动开发服务：
+
+```bash
 npm run dev
 ```
 
-访问：
+访问地址：
 
 ```text
 http://localhost:3000
 ```
 
-### Linux 服务器部署
+注意：本项目默认启动 HTTP 服务，请不要使用 `https://localhost:3000`。如果浏览器提示 `SSL_ERROR_RX_RECORD_TOO_LONG`，请手动改为 `http://localhost:3000`。
 
-适用于支持 Node.js `>= 22.5.0` 且具有持久磁盘的服务器：
+## 生产部署
+
+在 Linux 服务器上部署：
 
 ```bash
 git clone git@gitee.com:tidehope/lifequest.git
@@ -63,68 +73,29 @@ PORT=3000 npm start
 nohup npm start > lifequest.log 2>&1 &
 ```
 
+如果需要域名或 HTTPS，建议使用 Nginx 或云平台网关反向代理到 Node.js 服务端口：
+
+```text
+http://127.0.0.1:3000
+```
+
 部署注意事项：
 
-- SQLite 数据库文件位于 `server/data/lifequest.sqlite`，部署环境需要保证该目录可写且持久化。
-- 生产演示建议通过 Nginx 或平台网关反向代理到 Node.js 端口。
-- DeepSeek API Key 由管理员登录后在“系统配置”页保存，不要写入前端代码或提交到仓库。
-- 如果部署平台不支持持久文件系统，建议改用 MySQL、PostgreSQL 或其他外部数据库。
+- SQLite 数据库文件位于 `server/data/lifequest.sqlite`。
+- 部署环境需要保证 `server/data/` 目录可写并持久化。
+- 如果部署平台不支持持久文件系统，建议迁移到 MySQL、PostgreSQL 或其他外部数据库。
+- DeepSeek API Key 不要写入代码或提交到仓库，应由管理员登录后在系统配置中保存。
 
+## 使用方式
 
-## AI 任务生成
-
-- 任务生成调用 DeepSeek `deepseek-v4-flash` 模型。
-- 副本任务只能由 AI 生成，后端不再提供本地模板兜底。
-- DeepSeek API Key 由管理员在“系统配置”页统一配置，普通用户无需填写密钥。
-- API Key 只保存在服务端全局配置中，前端不会展示已保存的密钥内容。
-- 后端会校验 DeepSeek 返回结果，只有满足 `3` 到 `6` 个任务，且至少包含 `1` 个主线和 `1` 个 Boss 的结果才会写入任务表；每日任务和支线任务为可选。
-- 短期目标、一次性目标或冲刺型目标允许不生成每日任务；长期目标和习惯养成目标可以生成每日任务。
-- DeepSeek 需要为每个任务返回 `xpReward`，后端只做范围与整数校验；每日任务经验通常偏低，但具体数值由 AI 根据任务行动成本决定。
-- 每日任务每天可完成一次；目标通关进度只取决于主线和 Boss，全部完成后该目标下所有按钮显示为“已通关”。
-
-## 协作与维护
-
-项目采用小组分工、Gitee 分支协作和 AI Coding 辅助开发。成员在功能分支完成模块开发后，由组长合并、审查、测试和整理最终展示版本。协作流程、维护说明和课程材料见：
-
-```text
-AGENTS.md
-CONTRIBUTING.md
-docs/开发流程.md
-docs/协作文档.md
-docs/审查报告.md
-```
-
-推荐分支：
-
-```text
-main  稳定展示分支
-dev   日常开发与验证分支
-```
-
-
-## 文档导航
-
-```text
-docs/操作手册.md      本地运行、登录注册、功能演示步骤
-docs/API接口规范.md   后端接口、请求响应和错误码
-docs/架构设计.md      模块划分、数据库表和核心流程
-docs/规格说明.md      项目范围、功能需求和非功能需求
-docs/AI-Prompt设计.md DeepSeek 任务生成 Prompt 和校验规则
-docs/开发流程.md      小组分工、分支协作、验证和发布流程
-docs/协作文档.md      成员分工、分支贡献、AI Coding 使用记录
-docs/审查报告.md      代码审查问题与修复记录
-docs/提交材料清单.md  课程提交包、截图和 PPT/PDF 检查清单
-screenshots/README.md 截图命名规范和完整项目截图清单
-```
-
-## 默认测试账号
+默认普通账号：
 
 ```text
 用户名：demo
 密码：demo123
 ```
 
-管理员账号：
+默认管理员账号：
 
 ```text
 用户名：admin
@@ -137,19 +108,50 @@ screenshots/README.md 截图命名规范和完整项目截图清单
 LIFEQUEST-ADV-300
 ```
 
-注册新账号必须填写激活码。高级激活码最多可激活 300 个账号；普通激活码只能激活 1 个账号。
-
-访问系统时默认先显示登录页。登录成功后会话有效期为 7 天，可以通过顶部“退出登录”按钮注销。
-
-## 核心演示流程
+基本流程：
 
 ```text
-登录 demo 账号
-→ 查看人生角色
-→ 在任务看板点击头像选择图片文件
-→ 输入目标
+登录或注册
+→ 管理员配置 DeepSeek API Key
+→ 普通用户创建目标
 → 生成副本任务
-→ 在目标列表中选择目标
-→ 进入任务中心并完成任务
-→ 查看 XP、等级、徽章和排行榜头像变化
+→ 在目标列表选择目标
+→ 进入任务中心完成任务
+→ 获得 XP、等级、金币和徽章
+→ 查看排行榜
+```
+
+注册说明：
+
+- 登录只需要用户名和密码。
+- 注册需要有效激活码。
+- 普通激活码只能使用一次。
+- 高级激活码默认可激活 300 个账号。
+- 管理员可以生成普通激活码和高级激活码，并查看有效激活码状态。
+
+## AI 任务生成规则
+
+- 任务只能由 DeepSeek 生成，不使用本地模板兜底。
+- 任务类型包括主线任务、Boss 任务、可选每日任务和可选支线任务。
+- 短期目标允许不生成每日任务。
+- 每日任务每天可完成一次。
+- 目标通关只取决于主线任务和 Boss 任务。
+- 目标通关后，该目标下所有任务按钮会显示“已通关”。
+
+## 常用命令
+
+```bash
+npm run dev      # 启动开发服务
+npm start        # 以生产模式启动
+npm test         # 运行核心流程测试
+```
+
+## 项目结构
+
+```text
+lifequest/
+├── client/          # 前端页面、样式和交互逻辑
+├── server/          # 后端接口、服务和测试
+├── package.json     # npm 脚本与 Node 版本要求
+└── README.md        # 项目说明
 ```
