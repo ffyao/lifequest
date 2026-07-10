@@ -250,7 +250,7 @@ PUT /api/character
 
 ## 5. AI 配置接口
 
-### 查询当前用户 AI 配置状态
+### 查询 AI 配置状态
 
 ```text
 GET /api/ai/settings
@@ -262,15 +262,16 @@ GET /api/ai/settings
 {
   "settings": {
     "deepseekKeyConfigured": true,
-    "model": "deepseek-v4-flash"
+    "model": "deepseek-v4-flash",
+    "managedBy": "admin"
   }
 }
 ```
 
-### 保存 DeepSeek API Key
+### 管理员保存 DeepSeek API Key
 
 ```text
-PUT /api/ai/settings/deepseek-key
+PUT /api/admin/ai/deepseek-key
 ```
 
 请求：
@@ -281,7 +282,7 @@ PUT /api/ai/settings/deepseek-key
 }
 ```
 
-说明：每个用户首次生成副本任务前需要配置自己的 DeepSeek API Key。前端也可以在 `POST /api/tasks/generate` 时随请求传入 `deepseekApiKey`，后端会在 DeepSeek 调用成功后保存。
+说明：只有管理员可以保存全局 DeepSeek API Key。保存成功后，所有普通用户都可以直接生成副本任务。服务端不会通过接口返回密钥明文。
 
 ## 6. 目标接口
 
@@ -427,12 +428,11 @@ POST /api/tasks/generate
 {
   "title": "30 天掌握 Vue 项目开发",
   "description": "完成基础语法、组件通信、路由和项目实战。",
-  "category": "学习",
-  "deepseekApiKey": "sk-..."
+  "category": "学习"
 }
 ```
 
-说明：任务生成使用 DeepSeek `deepseek-v4-flash` 模型调用 `POST /chat/completions`。任务只能由 AI 生成，后端不使用本地模板兜底。生成结果必须包含 3 到 6 个副本任务，且至少包含 1 个主线和 1 个 Boss；每日任务和支线任务可选，短期目标允许不生成每日任务。模型必须为每个任务返回 `xpReward`，后端会校验任务数量、类型、难度、XP 整数范围、标题、描述和模板化标题后再写入数据库；如首次结果是可修复的格式问题，会携带失败原因请求 DeepSeek 重新生成一次。
+说明：任务生成使用管理员全局 DeepSeek API Key 调用 DeepSeek `deepseek-v4-flash` 模型的 `POST /chat/completions`。任务只能由 AI 生成，后端不使用本地模板兜底。生成结果必须包含 3 到 6 个副本任务，且至少包含 1 个主线和 1 个 Boss；每日任务和支线任务可选，短期目标允许不生成每日任务。模型必须为每个任务返回 `xpReward`，后端会校验任务数量、类型、难度、XP 整数范围、标题、描述和模板化标题后再写入数据库；如首次结果是可修复的格式问题，会携带失败原因请求 DeepSeek 重新生成一次。
 
 响应：
 

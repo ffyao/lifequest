@@ -533,11 +533,7 @@
               <textarea id="goalDescription" name="lifequestGoalDescription" placeholder="补充你的目标背景、期望成果..." autocomplete="off" class="textarea-field">希望完成基础语法、组件通信、路由和一个完整小项目。</textarea>
             </div>
 
-            <div class="form-group">
-              <label class="field-label">DeepSeek API Key</label>
-              <input id="deepseekApiKeyInput" name="lifequestDeepseekApiKey" type="password" placeholder="请配置deepseek apikey（前往platform.deepseek.com）" autocomplete="new-password" spellcheck="false" autocapitalize="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" class="input-field" />
-              <p class="field-help" id="deepseekKeyHint">首次生成副本任务前需要配置，生成成功后后续无需重复输入。</p>
-            </div>
+            <p class="field-help ai-status-hint" id="deepseekKeyHint">DeepSeek 由管理员统一配置，配置完成后所有用户都可以生成副本任务。</p>
 
             <button type="submit" class="btn-primary btn-lg btn-block">
               <svg class="icon icon-sm"><use href="#i-spark"/></svg>
@@ -615,17 +611,29 @@
           <div id="rankingList" class="ranking-list"></div>
         </section>
 
-        <!-- 激活码管理 -->
+        <!-- 管理员工具 -->
         <section id="admin" class="panel admin-panel glass-panel view-page admin-only is-hidden" data-view="admin">
           <div class="panel-header-wide with-action">
             <div>
               <p class="section-label">管理员工具</p>
-              <h2>激活码管理</h2>
+              <h2>系统配置</h2>
             </div>
             <button id="refreshActivationCodesButton" class="btn-icon-only" title="刷新激活码">
               <svg class="icon icon-sm"><use href="#i-refresh"/></svg>
             </button>
           </div>
+
+          <article class="admin-config-panel">
+            <div class="panel-header-center">
+              <p class="section-label">DeepSeek 配置</p>
+              <h3>全局 API Key</h3>
+            </div>
+            <form id="adminDeepseekForm" class="admin-key-form">
+              <input id="adminDeepseekApiKeyInput" type="password" placeholder="输入新的 DeepSeek API Key" autocomplete="new-password" spellcheck="false" autocapitalize="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" class="input-field" />
+              <button type="submit" class="btn-primary btn-sm">保存配置</button>
+            </form>
+            <p class="field-help" id="adminDeepseekHint">保存后所有用户都可以使用 DeepSeek 生成副本任务；页面不会显示密钥明文。</p>
+          </article>
 
           <div class="admin-actions">
             <button type="button" id="createNormalCodeButton" class="btn-primary btn-sm">

@@ -55,6 +55,23 @@ globalThis.fetch = async (url, options = {}) => {
 const database = initializeDatabase();
 const context = createAppContext(database);
 const suffix = Date.now();
+const previousDeepseekSetting = database
+  .prepare('SELECT value FROM app_settings WHERE key = ?')
+  .get('deepseekApiKey');
+database.prepare('DELETE FROM app_settings WHERE key = ?').run('deepseekApiKey');
+process.on('exit', () => {
+  if (previousDeepseekSetting) {
+    database
+      .prepare(`
+        INSERT INTO app_settings (key, value, updatedAt)
+        VALUES ('deepseekApiKey', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = CURRENT_TIMESTAMP
+      `)
+      .run(previousDeepseekSetting.value);
+  } else {
+    database.prepare('DELETE FROM app_settings WHERE key = ?').run('deepseekApiKey');
+  }
+});
 
 const adminLogin = context.userService.login({
   username: 'admin',
@@ -182,22 +199,36 @@ const goal = context.goalService.create(user.id, {
   category: '学习'
 });
 
-assert.equal(context.aiService.getSettings(user.id).deepseekKeyConfigured, false);
+assert.equal(context.aiService.getSettings().deepseekKeyConfigured, false);
 await assert.rejects(
   () => context.taskService.generate(user.id, goal),
   (error) => error.code === 'DEEPSEEK_API_KEY_REQUIRED' && error.statusCode === 400
 );
 
-const generated = await context.taskService.generate(user.id, goal, {
-  deepseekApiKey: 'sk-test-deepseek-key'
+const userKeyResponse = await invokeApi('PUT', '/api/admin/ai/deepseek-key', profileLogin.token, {
+  apiKey: 'sk-user-should-not-work'
 });
+assert.equal(userKeyResponse.statusCode, 403);
+
+const adminKeyResponse = await invokeApi('PUT', '/api/admin/ai/deepseek-key', adminLogin.token, {
+  apiKey: 'sk-test-deepseek-key'
+});
+assert.equal(adminKeyResponse.statusCode, 200);
+assert.equal(adminKeyResponse.payload.settings.deepseekKeyConfigured, true);
+assert.equal(adminKeyResponse.payload.settings.managedBy, 'admin');
+assert.equal(context.aiService.getSettings().deepseekKeyConfigured, true);
+const aiSettingsResponse = await invokeApi('GET', '/api/ai/settings', profileLogin.token);
+assert.equal(aiSettingsResponse.statusCode, 200);
+assert.equal(aiSettingsResponse.payload.settings.deepseekKeyConfigured, true);
+assert.equal(aiSettingsResponse.payload.settings.managedBy, 'admin');
+
+const generated = await context.taskService.generate(user.id, goal);
 assert.equal(generated.tasks.length, 4);
 assert.equal(generated.provider, 'deepseek');
 assert.equal(generated.model, 'deepseek-v4-flash');
 assert.ok(generated.tasks.every((task) => task.status === 'todo'));
 assert.equal(generated.tasks.some((task) => task.type === 'side'), false);
 assert.deepEqual(generated.tasks.map((task) => task.xpReward), [45, 18, 28, 130]);
-assert.equal(context.aiService.getSettings(user.id).deepseekKeyConfigured, true);
 assert.equal(deepseekRequestCount, 1);
 
 const secondGoal = context.goalService.create(user.id, {

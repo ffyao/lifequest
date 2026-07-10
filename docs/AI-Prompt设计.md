@@ -280,21 +280,20 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
 
 ## 7. DeepSeek 调用与失败处理
 
-当前项目使用 DeepSeek `deepseek-v4-flash` 作为副本任务生成模型。每个用户首次生成任务前必须配置自己的 DeepSeek API Key，配置入口位于目标生成表单，输入框占位文本固定为 `请配置deepseek apikey（前往platform.deepseek.com）`。
+当前项目使用 DeepSeek `deepseek-v4-flash` 作为副本任务生成模型。DeepSeek API Key 由管理员在“系统配置”页统一配置，普通用户无需填写密钥即可生成副本任务。
 
 ### 7.1 生成流程
 
 ```text
 用户登录
   → 前端读取 /api/ai/settings 判断是否已配置 API Key
-  → 未配置时要求在目标生成表单填写 DeepSeek API Key
+  → 未配置时提示联系管理员配置 DeepSeek API Key
   → POST /api/tasks/generate
   → 后端调用 https://api.deepseek.com/chat/completions
   → 使用 model=deepseek-v4-flash、thinking.disabled、response_format.json_object
   → 解析 DeepSeek 返回 JSON
   → 校验 npcMessage、任务数量、任务类型、任务难度、XP 范围和文本长度
   → 如标题模板化或格式化标签不合格，携带失败原因请求 DeepSeek 重新生成一次
-  → 校验通过后保存该用户 API Key
   → 写入 ai_logs 和 tasks
   → 返回目标、任务列表与 NPC 文案
 ```
@@ -307,7 +306,7 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
 4. `difficulty` 必须是 `easy`、`normal`、`hard` 或 `boss`。
 5. Boss 类型任务的 `difficulty` 必须为 `boss`，非 Boss 任务不能使用 `boss` 难度。
 6. `xpReward` 必须由 DeepSeek 返回，后端校验为 5 到 220 的整数；每日任务经验通常偏低，但不强制固定映射。
-7. 校验失败时不保存任务，首次传入的 API Key 也不会因为失败结果而保存。
+7. 校验失败时不保存任务。
 8. DeepSeek 返回结果不满足规则时直接失败，不会回退到本地模板任务。
 9. 标题不能包含冒号、字段标签或已知高频模板短语；描述不能包含“任务内容：”等字段标签格式。
 10. 对可修复的模型格式问题，后端最多追加一次 DeepSeek 重新生成请求；重试仍不合格才返回错误。
@@ -316,7 +315,7 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
 
 以下情况直接返回错误并中止任务生成：
 
-1. 当前用户未配置 DeepSeek API Key。
+1. 管理员尚未配置 DeepSeek API Key。
 2. DeepSeek API Key 格式明显不正确。
 3. DeepSeek 请求超时、网络失败、余额不足、权限错误或频率限制。
 4. DeepSeek 返回空内容、被截断内容或非 JSON 内容。
@@ -329,7 +328,8 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
 | 版本 | 日期       | 变更说明                                         |
 | ---- | ---------- | ------------------------------------------------ |
 | v1   | 2026-07-10 | 初始版本，定义输入输出 Schema 和示例。   |
-| v2   | 2026-07-10 | 接入 DeepSeek `deepseek-v4-flash`，补充用户级 API Key、JSON 模式和后端校验策略。 |
+| v2   | 2026-07-10 | 接入 DeepSeek `deepseek-v4-flash`，补充 API Key、JSON 模式和后端校验策略。 |
 | v3   | 2026-07-10 | 移除本地模板兜底，改为 AI-only 生成；明确每日任务和目标通关规则。 |
 | v4   | 2026-07-10 | 增加反模板标题约束，禁止字段标签式标题和“知识地图/实战小目标”等高频模板短语，并为可修复格式问题增加一次 AI 重新生成。 |
 | v5   | 2026-07-10 | 放宽 daily 为可选任务，短期目标可不生成每日任务；改为模型生成 `xpReward`，后端只做范围校验，并提示每日任务经验偏低。 |
+| v6   | 2026-07-10 | API Key 改为管理员全局配置，普通用户生成任务时不再输入或保存个人密钥。 |

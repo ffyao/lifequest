@@ -1,36 +1,37 @@
 export function createAiService(database) {
   return {
-    getSettings(userId) {
+    getSettings() {
       const settings = database
-        .prepare('SELECT deepseekApiKey FROM user_settings WHERE userId = ?')
-        .get(userId);
+        .prepare('SELECT value, updatedAt FROM app_settings WHERE key = ?')
+        .get('deepseekApiKey');
 
       return {
-        deepseekKeyConfigured: Boolean(settings?.deepseekApiKey),
-        model: 'deepseek-v4-flash'
+        deepseekKeyConfigured: Boolean(settings?.value),
+        model: 'deepseek-v4-flash',
+        managedBy: 'admin',
+        updatedAt: settings?.updatedAt || null
       };
     },
 
-    saveDeepseekApiKey(userId, apiKey) {
+    saveDeepseekApiKey(apiKey) {
       const normalizedApiKey = normalizeApiKey(apiKey);
       database
         .prepare(`
-          INSERT INTO user_settings (userId, deepseekApiKey, updatedAt)
-          VALUES (?, ?, CURRENT_TIMESTAMP)
-          ON CONFLICT(userId) DO UPDATE SET
-            deepseekApiKey = excluded.deepseekApiKey,
+          INSERT INTO app_settings (key, value, updatedAt)
+          VALUES ('deepseekApiKey', ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
             updatedAt = CURRENT_TIMESTAMP
         `)
-        .run(userId, normalizedApiKey);
+        .run(normalizedApiKey);
 
-      return this.getSettings(userId);
+      return this.getSettings();
     },
 
-    async generateTasks(userId, goal, options = {}) {
-      const providedApiKey = String(options.deepseekApiKey || '').trim();
-      const apiKey = providedApiKey ? normalizeApiKey(providedApiKey) : getDeepseekApiKey(database, userId);
+    async generateTasks(userId, goal) {
+      const apiKey = getDeepseekApiKey(database);
       if (!apiKey) {
-        const error = new Error('首次生成任务前，请先配置 DeepSeek API Key');
+        const error = new Error('管理员尚未配置 DeepSeek API Key，请联系管理员');
         error.statusCode = 400;
         error.code = 'DEEPSEEK_API_KEY_REQUIRED';
         throw error;
@@ -100,11 +101,11 @@ function normalizeApiKey(apiKey) {
   return normalizedApiKey;
 }
 
-function getDeepseekApiKey(database, userId) {
+function getDeepseekApiKey(database) {
   const settings = database
-    .prepare('SELECT deepseekApiKey FROM user_settings WHERE userId = ?')
-    .get(userId);
-  return settings?.deepseekApiKey || '';
+    .prepare('SELECT value FROM app_settings WHERE key = ?')
+    .get('deepseekApiKey');
+  return settings?.value || '';
 }
 
 async function requestDeepseekTasks(apiKey, userId, goal, category, options = {}) {

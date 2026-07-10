@@ -73,13 +73,15 @@ export async function handleApiRequest(request, response, context) {
     }
 
     if (method === 'GET' && pathname === '/api/ai/settings') {
-      const settings = context.aiService.getSettings(getCurrentUserId());
+      getCurrentUser();
+      const settings = context.aiService.getSettings();
       sendJson(response, 200, { settings });
       return;
     }
 
-    if (method === 'PUT' && pathname === '/api/ai/settings/deepseek-key') {
-      const settings = context.aiService.saveDeepseekApiKey(getCurrentUserId(), (await readJson(request)).apiKey);
+    if (method === 'PUT' && pathname === '/api/admin/ai/deepseek-key') {
+      context.userService.requireAdmin(request);
+      const settings = context.aiService.saveDeepseekApiKey((await readJson(request)).apiKey);
       sendJson(response, 200, { settings });
       return;
     }
@@ -146,9 +148,7 @@ export async function handleApiRequest(request, response, context) {
           ? context.goalService.find(userId, requireNumber(body.goalId, 'goalId'))
           : context.goalService.create(userId, body.goal || body);
         createdGoal = !body.goalId;
-        const result = await context.taskService.generate(userId, goal, {
-          deepseekApiKey: body.deepseekApiKey
-        });
+        const result = await context.taskService.generate(userId, goal);
         const unlockedBadges = context.badgeService.evaluate(userId);
         sendJson(response, 201, { goal, ...result, unlockedBadges });
       } catch (error) {

@@ -2361,6 +2361,30 @@ p { margin: 0; }
    ============================================= */
 .admin-panel { padding: 26px 28px; }
 
+.admin-config-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  margin-bottom: 18px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.admin-key-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.ai-status-hint {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.025);
+}
+
 .admin-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2531,6 +2555,7 @@ p { margin: 0; }
   .goal-list { max-height: none; }
   .badge-grid { grid-template-columns: 1fr; }
   .admin-code-layout { grid-template-columns: 1fr; }
+  .admin-key-form { grid-template-columns: 1fr; }
   .auth-page { grid-template-columns: 1fr; }
 }
 

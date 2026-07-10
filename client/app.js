@@ -92,7 +92,6 @@ const elements = {
   goalTitle: document.querySelector('#goalTitle'),
   goalCategory: document.querySelector('#goalCategory'),
   goalDescription: document.querySelector('#goalDescription'),
-  deepseekApiKeyInput: document.querySelector('#deepseekApiKeyInput'),
   deepseekKeyHint: document.querySelector('#deepseekKeyHint'),
 
   refreshButton: document.querySelector('#refreshButton'),
@@ -127,6 +126,9 @@ const elements = {
   createNormalCodeButton: document.querySelector('#createNormalCodeButton'),
   createAdvancedCodeButton: document.querySelector('#createAdvancedCodeButton'),
   adminHint: document.querySelector('#adminHint'),
+  adminDeepseekForm: document.querySelector('#adminDeepseekForm'),
+  adminDeepseekApiKeyInput: document.querySelector('#adminDeepseekApiKeyInput'),
+  adminDeepseekHint: document.querySelector('#adminDeepseekHint'),
   advancedCodeList: document.querySelector('#advancedCodeList'),
   normalCodeList: document.querySelector('#normalCodeList'),
 
@@ -190,12 +192,8 @@ elements.goalForm.addEventListener('submit', async (event) => {
     category: elements.goalCategory.value,
     description: elements.goalDescription.value.trim()
   };
-  const deepseekApiKey = elements.deepseekApiKeyInput.value.trim();
-  if (deepseekApiKey) {
-    payload.deepseekApiKey = deepseekApiKey;
-  } else if (!state.aiSettings.deepseekKeyConfigured) {
-    showToast('请先配置 DeepSeek API Key');
-    elements.deepseekApiKeyInput.focus();
+  if (!state.aiSettings.deepseekKeyConfigured) {
+    showToast('管理员尚未配置 DeepSeek API Key，暂时无法生成任务');
     return;
   }
 
@@ -206,7 +204,6 @@ elements.goalForm.addEventListener('submit', async (event) => {
     });
 
     if (response.npcMessage) {
-      elements.npcMessage.textContent = response.npcMessage;
       elements.heroNpc.textContent = response.npcMessage;
     }
 
@@ -214,9 +211,6 @@ elements.goalForm.addEventListener('submit', async (event) => {
       setSelectedGoal(response.goal.id, { persist: true, render: false });
     }
 
-    if (deepseekApiKey) {
-      elements.deepseekApiKeyInput.value = '';
-    }
     await loadAiSettings();
     showToast(`已生成 ${response.tasks.length} 个${payload.category || ''}副本任务`);
     await refreshAll();
@@ -268,6 +262,11 @@ elements.createNormalCodeButton.addEventListener('click', async () => {
 
 elements.createAdvancedCodeButton.addEventListener('click', async () => {
   await createActivationCode('advanced');
+});
+
+elements.adminDeepseekForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  await saveAdminDeepseekKey();
 });
 
 window.addEventListener('hashchange', () => {
@@ -334,7 +333,7 @@ function clearSession() {
     model: 'deepseek-v4-flash'
   };
   state.selectedGoalId = null;
-  elements.deepseekApiKeyInput.value = '';
+  elements.adminDeepseekApiKeyInput.value = '';
   renderAiSettings();
   localStorage.removeItem('lifequest:authToken');
   localStorage.removeItem('lifequest:userId');
@@ -444,6 +443,8 @@ function renderLoggedOutState() {
   elements.taskList.innerHTML = loggedOutEmptyState('任务中心需要登录后查看');
   elements.badgeList.innerHTML = loggedOutEmptyState('徽章墙需要登录后查看');
   elements.rankingList.innerHTML = loggedOutEmptyState('排行榜需要登录后查看');
+  elements.adminDeepseekHint.textContent = '管理员登录后配置全局 DeepSeek API Key';
+  elements.adminDeepseekApiKeyInput.value = '';
   elements.advancedCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看高级激活码');
   elements.normalCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看普通激活码');
 }
@@ -463,9 +464,10 @@ async function loadAiSettings() {
 function renderAiSettings() {
   const configured = Boolean(state.aiSettings.deepseekKeyConfigured);
   elements.deepseekKeyHint.textContent = configured
-    ? `已配置 DeepSeek API Key，当前模型：${state.aiSettings.model || 'deepseek-v4-flash'}。如需更换，请重新输入后生成。`
-    : '首次生成副本任务前需要配置，生成成功后后续无需重复输入。';
+    ? `AI 任务生成已启用，当前模型：${state.aiSettings.model || 'deepseek-v4-flash'}。`
+    : '管理员尚未配置 DeepSeek API Key，暂时无法生成副本任务。';
   elements.deepseekKeyHint.classList.toggle('configured', configured);
+  renderAdminAiSettings();
 }
 
 function showAuthHint(message) {
@@ -623,18 +625,7 @@ function renderDashboard() {
   // 渲染难度星级
   renderDifficultyStars(tasks);
 
-  // NPC Message
-  const currentNpcText = elements.npcMessage.textContent?.trim();
-  const defaultMessages = ['等待生成当前副本...', '等待生成今日副本...', '', undefined, null];
-
-  if (defaultMessages.includes(currentNpcText)) {
-    if (tasks.length > 0) {
-      const msg = getRandomNpcMessage(todoTasks.length, doneTasks.length);
-      setNpcMessage(msg);
-    } else {
-      setNpcMessage('还没有任务，快去创建你的第一个目标吧！');
-    }
-  }
+  setNpcMessage(buildDashboardMessage(tasks, todoTasks, doneTasks));
 }
 
 function updateMetricBars(todo, done, badges) {
@@ -673,16 +664,26 @@ function setNpcMessage(message) {
   elements.heroNpc.textContent = message;
 }
 
-function getRandomNpcMessage(todo, done) {
-  const messages = [
-    `勇者，还有 ${todo} 个挑战在等你`,
-    '每一次微小的完成，都是经验条的跳动',
-    '副本在等待你的挑战，从第一个任务开始吧',
-    done > 0 ? `已完成 ${done} 个任务，继续保持` : '完成一个主线任务，等级将离提升更近一步',
-    '不需要一次完美通关，先推进一个任务',
-    todo > 3 ? '当前副本强度较高，但你有这个实力' : '当前挑战不多，稳稳推进即可'
-  ];
-  return messages[Math.floor(Math.random() * messages.length)];
+function buildDashboardMessage(tasks, todoTasks, doneTasks) {
+  if (!tasks.length) {
+    return '还没有副本任务。先创建一个目标，系统会生成主线、Boss 以及可选每日或支线任务。';
+  }
+
+  const selectedGoal = getSelectedGoal();
+  const selectedTasks = selectedGoal ? getTasksForGoal(selectedGoal.id) : [];
+  if (selectedGoal && selectedTasks.length) {
+    const progress = getGoalProgress(selectedTasks);
+    const selectedTodoCount = selectedTasks.filter(task => !isTaskDoneToday(task)).length;
+    const hasDailyTask = selectedTasks.some(task => task.type === 'daily');
+    if (isGoalComplete(selectedGoal, selectedTasks)) {
+      return `当前目标「${selectedGoal.title}」已通关：主线与 Boss 已全部完成，可切换其他目标继续推进。`;
+    }
+    const dailyNote = hasDailyTask ? '；每日任务可作为重复练习，不影响通关进度' : '';
+    return `当前目标「${selectedGoal.title}」通关进度 ${progress.done}/${progress.total}，还有 ${selectedTodoCount} 个未完成任务。优先推进主线和 Boss${dailyNote}。`;
+  }
+
+  const requiredTodoCount = tasks.filter(task => (task.type === 'main' || task.type === 'boss') && !isTaskDoneToday(task)).length;
+  return `当前共有 ${todoTasks.length} 个未完成任务，已完成 ${doneTasks.length} 个任务，其中 ${requiredTodoCount} 个未完成任务影响目标通关。`;
 }
 
 function renderGoalList() {
@@ -972,6 +973,44 @@ async function loadActivationCodes() {
   }
 }
 
+async function saveAdminDeepseekKey() {
+  if (state.user?.role !== 'admin') {
+    showToast('只有管理员可以配置 DeepSeek API Key');
+    return;
+  }
+
+  const apiKey = elements.adminDeepseekApiKeyInput.value.trim();
+  if (!apiKey) {
+    showToast('请输入 DeepSeek API Key');
+    elements.adminDeepseekApiKeyInput.focus();
+    return;
+  }
+
+  try {
+    const response = await api('/api/admin/ai/deepseek-key', {
+      method: 'PUT',
+      body: { apiKey }
+    });
+    state.aiSettings = response.settings || state.aiSettings;
+    elements.adminDeepseekApiKeyInput.value = '';
+    renderAiSettings();
+    showToast('DeepSeek API Key 已保存，所有用户现在可以生成任务');
+  } catch (error) {
+    console.error('Save DeepSeek key failed:', error);
+    showToast(error.message || '保存 DeepSeek API Key 失败');
+  }
+}
+
+function renderAdminAiSettings() {
+  if (!elements.adminDeepseekHint) return;
+
+  const configured = Boolean(state.aiSettings.deepseekKeyConfigured);
+  elements.adminDeepseekHint.textContent = configured
+    ? `DeepSeek 已配置，所有用户可使用 ${state.aiSettings.model || 'deepseek-v4-flash'} 生成副本任务。重新输入可覆盖当前密钥。`
+    : 'DeepSeek 尚未配置，普通用户暂时无法生成副本任务。保存后页面不会显示密钥明文。';
+  elements.adminDeepseekHint.classList.toggle('configured', configured);
+}
+
 async function createActivationCode(type) {
   if (state.user?.role !== 'admin') {
     showToast('只有管理员可以生成激活码');
@@ -1108,6 +1147,7 @@ function setActiveView(view) {
   });
 
   if (targetView === 'admin') {
+    loadAiSettings();
     loadActivationCodes();
   }
 

@@ -15,8 +15,8 @@ export function createTaskService(database, gameService, aiService) {
       }));
     },
 
-    async generate(userId, goal, options = {}) {
-      const aiResult = await aiService.generateTasks(userId, goal, options);
+    async generate(userId, goal) {
+      const aiResult = await aiService.generateTasks(userId, goal);
       const insert = database.prepare(`
         INSERT INTO tasks (userId, goalId, title, description, type, difficulty, xpReward, status, dueDate)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -40,9 +40,6 @@ export function createTaskService(database, gameService, aiService) {
           return database.prepare('SELECT * FROM tasks WHERE id = ?').get(Number(result.lastInsertRowid));
         });
 
-        if (options.deepseekApiKey) {
-          aiService.saveDeepseekApiKey(userId, options.deepseekApiKey);
-        }
         aiService.recordGeneration(userId, goal, aiResult);
 
         database.exec('COMMIT');
