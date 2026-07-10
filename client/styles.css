@@ -1707,15 +1707,16 @@ p { margin: 0; }
 
 .goal-list-card {
   width: 100%;
+  position: relative;
   display: grid;
-  gap: 8px;
-  padding: 15px 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 0;
   border: 1px solid var(--border-default);
   border-radius: var(--r-md);
   color: var(--text-secondary);
   background: rgba(255, 255, 255, 0.025);
-  text-align: left;
-  cursor: pointer;
   transition:
     transform 0.25s var(--ease-out-expo),
     border-color 0.25s var(--ease-out-expo),
@@ -1728,6 +1729,43 @@ p { margin: 0; }
   border-color: var(--border-strong);
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.045);
+}
+
+.goal-card-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 15px 0 15px 16px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.goal-delete-button {
+  align-self: start;
+  margin: 12px 12px 0 0;
+  padding: 6px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid rgba(255, 120, 120, 0.22);
+  color: #f0b0b0;
+  background: rgba(255, 120, 120, 0.08);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color 0.2s var(--ease-out-expo),
+    background 0.2s var(--ease-out-expo),
+    border-color 0.2s var(--ease-out-expo),
+    transform 0.2s var(--ease-out-expo);
+}
+
+.goal-delete-button:hover {
+  color: #ffd0d0;
+  border-color: rgba(255, 140, 140, 0.42);
+  background: rgba(255, 120, 120, 0.16);
+  transform: translateY(-1px);
 }
 
 .goal-list-card.active {

@@ -152,6 +152,7 @@ const updatedProfile = context.gameService.createOrUpdateCharacter(user.id, {
   career: '学习者',
   avatar: avatarImage
 });
+database.prepare('UPDATE characters SET xp = 999999, level = 99 WHERE userId = ?').run(user.id);
 assert.equal(updatedProfile.character.nickname, '测试勇者');
 assert.equal(updatedProfile.character.avatar, avatarImage);
 

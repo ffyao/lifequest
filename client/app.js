@@ -705,18 +705,23 @@ function renderGoalList() {
     const isSelected = Number(goal.id) === Number(state.selectedGoalId);
 
     return `
-      <button type="button" class="goal-list-card ${isSelected ? 'active' : ''}" data-goal-id="${goal.id}">
-        <span class="goal-card-title">${escapeHtml(goal.title)}</span>
-        <span class="goal-card-desc">${escapeHtml(goal.description || '暂无目标描述')}</span>
-        <span class="goal-card-meta">
-          <span>${escapeHtml(goal.category || '未分类')}</span>
-          <span>${formatDate(goal.createdAt)}</span>
-          <span>${completed ? '已通关' : `${progress.done}/${progress.total} 通关进度`}</span>
-        </span>
-        <span class="goal-card-progress">
-          <span style="width: ${completed ? 100 : progress.percent}%"></span>
-        </span>
-      </button>
+      <article class="goal-list-card ${isSelected ? 'active' : ''}">
+        <button type="button" class="goal-card-main" data-goal-id="${goal.id}">
+          <span class="goal-card-title">${escapeHtml(goal.title)}</span>
+          <span class="goal-card-desc">${escapeHtml(goal.description || '暂无目标描述')}</span>
+          <span class="goal-card-meta">
+            <span>${escapeHtml(goal.category || '未分类')}</span>
+            <span>${formatDate(goal.createdAt)}</span>
+            <span>${completed ? '已通关' : `${progress.done}/${progress.total} 通关进度`}</span>
+          </span>
+          <span class="goal-card-progress">
+            <span style="width: ${completed ? 100 : progress.percent}%"></span>
+          </span>
+        </button>
+        <button type="button" class="goal-delete-button" data-delete-goal-id="${goal.id}" title="删除目标" aria-label="删除目标：${escapeHtml(goal.title)}">
+          删除
+        </button>
+      </article>
     `;
   }).join('');
 
@@ -726,6 +731,31 @@ function renderGoalList() {
       showToast('已切换目标任务中心');
     });
   });
+
+  elements.goalList.querySelectorAll('[data-delete-goal-id]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const goalId = button.getAttribute('data-delete-goal-id');
+      const goal = state.goals.find(item => Number(item.id) === Number(goalId));
+      await deleteGoal(goalId, goal?.title || '该目标');
+    });
+  });
+}
+
+async function deleteGoal(goalId, goalTitle) {
+  const confirmed = window.confirm(`确定删除目标「${goalTitle}」吗？删除后该目标会从目标列表移除，关联任务不会删除但会脱离目标任务中心。`);
+  if (!confirmed) return;
+
+  try {
+    await api(`/api/goals/${goalId}`, { method: 'DELETE' });
+    if (Number(state.selectedGoalId) === Number(goalId)) {
+      setSelectedGoal(null, { persist: true, render: false });
+    }
+    showToast('目标已删除');
+    await refreshAll();
+  } catch (error) {
+    console.error('Delete goal failed:', error);
+    showToast(error.message || '删除目标失败');
+  }
 }
 
 function renderTasks() {
