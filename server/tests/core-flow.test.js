@@ -145,7 +145,43 @@ const advancedAfter = activationCodes.advancedCodes.find((code) => code.code ===
 assert.equal(advancedAfter.remainingUses, advancedBefore - 1);
 assert.ok(activationCodes.normalCodes.every((code) => code.code !== normalCode.code));
 
-console.log('认证测试通过：注册需激活码、普通码一次性、高级码递减、管理员可生成和查看激活码、会话注销和过期生效');
+assert.throws(
+  () => context.userService.createActivationCode(adminLogin.user.id, { type: 'advanced', maxUses: 1 }),
+  (error) => error.code === 'INVALID_ADVANCED_CODE_USES' && error.statusCode === 400
+);
+
+const customAdvancedCode = context.userService.createActivationCode(adminLogin.user.id, { type: 'advanced', maxUses: 5 });
+assert.equal(customAdvancedCode.maxUses, 5);
+assert.equal(customAdvancedCode.remainingUses, 5);
+const customAdvancedUser = context.userService.register({
+  username: `ca-${suffix}`,
+  password: 'test1234',
+  activationCode: customAdvancedCode.code
+});
+assert.ok(customAdvancedUser.token);
+const customAdvancedAfterUse = context.userService
+  .listActivationCodes()
+  .advancedCodes
+  .find((code) => code.code === customAdvancedCode.code);
+assert.equal(customAdvancedAfterUse.remainingUses, 4);
+
+const revokeDeniedResponse = await invokeApi('PATCH', `/api/admin/activation-codes/${customAdvancedCode.id}/revoke`, customAdvancedUser.token);
+assert.equal(revokeDeniedResponse.statusCode, 403);
+
+const revokeResponse = await invokeApi('PATCH', `/api/admin/activation-codes/${customAdvancedCode.id}/revoke`, adminLogin.token);
+assert.equal(revokeResponse.statusCode, 200);
+assert.equal(revokeResponse.payload.revokedActivationCode.remainingUses, 0);
+assert.ok(revokeResponse.payload.advancedCodes.every((code) => code.id !== customAdvancedCode.id));
+assert.throws(
+  () => context.userService.register({
+    username: `rv-${suffix}`,
+    password: 'test1234',
+    activationCode: customAdvancedCode.code
+  }),
+  (error) => error.code === 'INVALID_ACTIVATION_CODE' && error.statusCode === 400
+);
+
+console.log('认证测试通过：注册需激活码、普通码一次性、高级码自定义次数和废除、管理员权限、会话注销和过期生效');
 
 context.gameService.createOrUpdateCharacter(user.id, {
   nickname: '测试勇者',

@@ -125,6 +125,7 @@ const elements = {
   refreshActivationCodesButton: document.querySelector('#refreshActivationCodesButton'),
   createNormalCodeButton: document.querySelector('#createNormalCodeButton'),
   createAdvancedCodeButton: document.querySelector('#createAdvancedCodeButton'),
+  advancedCodeUsesInput: document.querySelector('#advancedCodeUsesInput'),
   adminHint: document.querySelector('#adminHint'),
   adminDeepseekForm: document.querySelector('#adminDeepseekForm'),
   adminDeepseekApiKeyInput: document.querySelector('#adminDeepseekApiKeyInput'),
@@ -262,6 +263,12 @@ elements.createNormalCodeButton.addEventListener('click', async () => {
 
 elements.createAdvancedCodeButton.addEventListener('click', async () => {
   await createActivationCode('advanced');
+});
+
+elements.advancedCodeList.addEventListener('click', async (event) => {
+  const revokeButton = event.target.closest('[data-revoke-code-id]');
+  if (!revokeButton) return;
+  await revokeAdvancedActivationCode(revokeButton.dataset.revokeCodeId);
 });
 
 elements.adminDeepseekForm.addEventListener('submit', async (event) => {
@@ -1047,17 +1054,64 @@ async function createActivationCode(type) {
     return;
   }
 
+  const body = { type };
+  if (type === 'advanced') {
+    const maxUses = normalizeAdvancedCodeUsesInput();
+    if (!maxUses) return;
+    body.maxUses = maxUses;
+  }
+
   try {
     const data = await api('/api/admin/activation-codes', {
       method: 'POST',
-      body: { type }
+      body
     });
     renderActivationCodes(data);
-    showToast(`已生成${type === 'advanced' ? '高级' : '普通'}激活码：${data.activationCode.code}`);
+    const usesText = type === 'advanced' ? `（${Number(data.activationCode.maxUses)} 次）` : '';
+    showToast(`已生成${type === 'advanced' ? '高级' : '普通'}激活码${usesText}：${data.activationCode.code}`);
   } catch (error) {
     console.error('Create activation code failed:', error);
     showToast(error.message || '生成激活码失败');
   }
+}
+
+async function revokeAdvancedActivationCode(codeId) {
+  if (state.user?.role !== 'admin') {
+    showToast('只有管理员可以废除高级激活码');
+    return;
+  }
+
+  const normalizedCodeId = Number(codeId);
+  if (!Number.isInteger(normalizedCodeId) || normalizedCodeId <= 0) {
+    showToast('激活码编号无效');
+    return;
+  }
+
+  if (!window.confirm('确定废除这个高级激活码吗？废除后无法继续用于注册。')) {
+    return;
+  }
+
+  try {
+    const data = await api(`/api/admin/activation-codes/${normalizedCodeId}/revoke`, {
+      method: 'PATCH'
+    });
+    renderActivationCodes(data);
+    showToast('高级激活码已废除');
+  } catch (error) {
+    console.error('Revoke activation code failed:', error);
+    showToast(error.message || '废除高级激活码失败');
+  }
+}
+
+function normalizeAdvancedCodeUsesInput() {
+  const rawValue = elements.advancedCodeUsesInput.value.trim();
+  const maxUses = rawValue ? Number(rawValue) : 300;
+  if (!Number.isInteger(maxUses) || maxUses < 2 || maxUses > 10000) {
+    showToast('高级激活码次数必须是 2 到 10000 的整数');
+    elements.advancedCodeUsesInput.focus();
+    return null;
+  }
+  return maxUses;
 }
 
 function renderActivationCodes({ advancedCodes = [], normalCodes = [] }) {
@@ -1071,12 +1125,18 @@ function renderActivationCodes({ advancedCodes = [], normalCodes = [] }) {
 }
 
 function renderCodeCard(code) {
+  const isAdvanced = code.type === 'advanced';
+  const revokeAction = isAdvanced
+    ? `<button type="button" class="btn-danger btn-sm code-revoke-button" data-revoke-code-id="${Number(code.id)}">废除</button>`
+    : '';
+
   return `
     <article class="code-card">
       <strong>${escapeHtml(code.code)}</strong>
-      <span>类型：${code.type === 'advanced' ? '高级激活码' : '普通激活码'}</span>
+      <span>类型：${isAdvanced ? '高级激活码' : '普通激活码'}</span>
       <span>剩余次数：${Number(code.remainingUses)} / ${Number(code.maxUses)}</span>
       <span>创建时间：${escapeHtml(code.createdAt || '未知')}</span>
+      ${revokeAction ? `<div class="code-card-actions">${revokeAction}</div>` : ''}
     </article>
   `;
 }

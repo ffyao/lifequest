@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 
 const NORMAL_CODE_USES = 1;
-const ADVANCED_CODE_USES = 300;
+const DEFAULT_ADVANCED_CODE_USES = 300;
+const MIN_ADVANCED_CODE_USES = 2;
+const MAX_ADVANCED_CODE_USES = 10000;
 const SESSION_TTL_DAYS = 7;
 
 export function createUserService(database) {
@@ -120,9 +122,11 @@ export function createUserService(database) {
       return user;
     },
 
-    createActivationCode(adminUserId, { type }) {
+    createActivationCode(adminUserId, { type, maxUses }) {
       const normalizedType = normalizeActivationType(type);
-      const maxUses = normalizedType === 'advanced' ? ADVANCED_CODE_USES : NORMAL_CODE_USES;
+      const normalizedMaxUses = normalizedType === 'advanced'
+        ? normalizeAdvancedCodeUses(maxUses)
+        : NORMAL_CODE_USES;
       const code = generateUniqueActivationCode(database, normalizedType);
 
       database
@@ -130,9 +134,39 @@ export function createUserService(database) {
           INSERT INTO activation_codes (code, type, remainingUses, maxUses, createdBy)
           VALUES (?, ?, ?, ?, ?)
         `)
-        .run(code, normalizedType, maxUses, maxUses, adminUserId);
+        .run(code, normalizedType, normalizedMaxUses, normalizedMaxUses, adminUserId);
 
       return findActivationCodeByCode(database, code);
+    },
+
+    revokeAdvancedActivationCode(codeId) {
+      const activationCode = findActivationCodeById(database, codeId);
+      if (!activationCode) {
+        const error = new Error('激活码不存在');
+        error.statusCode = 404;
+        error.code = 'ACTIVATION_CODE_NOT_FOUND';
+        throw error;
+      }
+
+      if (activationCode.type !== 'advanced') {
+        const error = new Error('只能废除高级激活码');
+        error.statusCode = 400;
+        error.code = 'ONLY_ADVANCED_CODE_CAN_BE_REVOKED';
+        throw error;
+      }
+
+      if (activationCode.remainingUses <= 0) {
+        const error = new Error('该高级激活码已经失效');
+        error.statusCode = 400;
+        error.code = 'ACTIVATION_CODE_ALREADY_INACTIVE';
+        throw error;
+      }
+
+      database
+        .prepare('UPDATE activation_codes SET remainingUses = 0 WHERE id = ?')
+        .run(activationCode.id);
+
+      return findActivationCodeById(database, activationCode.id);
     },
 
     listActivationCodes() {
@@ -202,6 +236,22 @@ function normalizeActivationType(type) {
   return normalizedType;
 }
 
+function normalizeAdvancedCodeUses(maxUses) {
+  if (maxUses === undefined || maxUses === null || maxUses === '') {
+    return DEFAULT_ADVANCED_CODE_USES;
+  }
+
+  const normalizedUses = Number(maxUses);
+  if (!Number.isInteger(normalizedUses) || normalizedUses < MIN_ADVANCED_CODE_USES || normalizedUses > MAX_ADVANCED_CODE_USES) {
+    const error = new Error(`高级激活码次数必须是 ${MIN_ADVANCED_CODE_USES} 到 ${MAX_ADVANCED_CODE_USES} 的整数`);
+    error.statusCode = 400;
+    error.code = 'INVALID_ADVANCED_CODE_USES';
+    throw error;
+  }
+
+  return normalizedUses;
+}
+
 function findByUsername(database, username) {
   return database.prepare('SELECT id FROM users WHERE username = ?').get(username);
 }
@@ -230,6 +280,16 @@ function findActivationCodeByCode(database, code) {
       WHERE code = ?
     `)
     .get(code);
+}
+
+function findActivationCodeById(database, id) {
+  return database
+    .prepare(`
+      SELECT id, code, type, remainingUses, maxUses, createdAt
+      FROM activation_codes
+      WHERE id = ?
+    `)
+    .get(id);
 }
 
 function consumeActivationCode(database, activation, userId) {

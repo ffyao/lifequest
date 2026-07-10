@@ -682,6 +682,30 @@ body[data-view="auth"] .app-shell {
   box-shadow: 0 4px 16px rgba(255, 255, 255, 0.15);
 }
 
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border: 1px solid rgba(255, 112, 112, 0.45);
+  border-radius: var(--r-full);
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffc9c9;
+  background: rgba(255, 78, 78, 0.08);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.btn-danger:hover {
+  border-color: rgba(255, 138, 138, 0.75);
+  background: rgba(255, 78, 78, 0.14);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 78, 78, 0.16);
+}
+
 .btn-lg {
   padding: 16px 36px;
   font-size: 15px;
@@ -2426,8 +2450,22 @@ p { margin: 0; }
 .admin-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.admin-uses-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.admin-uses-field .input-field {
+  width: 138px;
+  padding: 10px 12px;
 }
 
 .admin-code-layout {
@@ -2469,6 +2507,17 @@ p { margin: 0; }
 .code-card span {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.code-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.code-revoke-button {
+  padding: 8px 14px;
+  font-size: 12px;
 }
 
 /* =============================================

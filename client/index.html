@@ -639,13 +639,17 @@
             <button type="button" id="createNormalCodeButton" class="btn-primary btn-sm">
               生成普通激活码
             </button>
+            <label class="admin-uses-field">
+              <span>高级码次数</span>
+              <input id="advancedCodeUsesInput" type="number" min="2" max="10000" step="1" value="300" placeholder="2-10000" autocomplete="off" class="input-field" />
+            </label>
             <button type="button" id="createAdvancedCodeButton" class="btn-secondary btn-sm">
               生成高级激活码
             </button>
           </div>
 
           <p id="adminHint" class="auth-hint">
-            普通激活码只能注册 1 个账号；高级激活码最多注册 300 个账号。
+            普通激活码只能注册 1 个账号；高级激活码可自定义 2 到 10000 次，并可在列表中废除。
           </p>
 
           <div class="admin-code-layout">

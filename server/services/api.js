@@ -72,6 +72,15 @@ export async function handleApiRequest(request, response, context) {
       return;
     }
 
+    if (method === 'PATCH' && /^\/api\/admin\/activation-codes\/\d+\/revoke$/.test(pathname)) {
+      context.userService.requireAdmin(request);
+      const activationCodeId = requireNumber(pathname.split('/').at(-2), 'activationCodeId');
+      const revokedActivationCode = context.userService.revokeAdvancedActivationCode(activationCodeId);
+      const activationCodes = context.userService.listActivationCodes();
+      sendJson(response, 200, { revokedActivationCode, ...activationCodes });
+      return;
+    }
+
     if (method === 'GET' && pathname === '/api/ai/settings') {
       getCurrentUser();
       const settings = context.aiService.getSettings();
