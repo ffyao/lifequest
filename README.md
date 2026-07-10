@@ -113,6 +113,8 @@ docs/AI-Prompt设计.md DeepSeek 任务生成 Prompt 和校验规则
 docs/开发流程.md      小组分工、分支协作、验证和发布流程
 docs/协作文档.md      成员分工、分支贡献、AI Coding 使用记录
 docs/审查报告.md      代码审查问题与修复记录
+docs/提交材料清单.md  课程提交包、截图和 PPT/PDF 检查清单
+screenshots/README.md 截图命名规范和完整项目截图清单
 ```
 
 ## 默认测试账号
