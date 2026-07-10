@@ -246,7 +246,7 @@ PUT /api/character
 }
 ```
 
-说明：`avatar` 为空表示使用默认头像；用户名来自账号注册信息，不通过角色接口修改。
+说明：`avatar` 为空表示使用默认头像；非空时必须是图片文件生成的 `data:image/...;base64,...` 数据。用户名来自账号注册信息，不通过角色接口修改。
 
 ## 5. AI 配置接口
 
@@ -310,6 +310,7 @@ GET /api/goals/:id
     "description": "完成 Vue 基础、组件通信和一个完整项目。",
     "category": "学习",
     "status": "active",
+    "completedAt": null,
     "createdAt": "2026-07-09 10:00:00"
   }
 }
@@ -352,7 +353,7 @@ PUT /api/goals/:id
 
 - 只能更新当前用户自己的目标。
 - `title` 不能为空（至少 2 个字符）。
-- `status` 可选值：`active`、`paused`、`done`。
+- `status` 为目标状态文本；前端常用 `active`、`paused`、`done`。
 
 响应：
 
@@ -365,6 +366,7 @@ PUT /api/goals/:id
     "description": "完成基础语法、组件通信和项目实战。",
     "category": "学习",
     "status": "active",
+    "completedAt": null,
     "createdAt": "2026-07-09 10:00:00"
   }
 }
@@ -430,7 +432,7 @@ POST /api/tasks/generate
 }
 ```
 
-说明：任务生成使用 DeepSeek `deepseek-v4-flash` 模型调用 `POST /chat/completions`。任务只能由 AI 生成，后端不使用本地模板兜底。生成结果必须包含 3 到 6 个副本任务，且至少包含 1 个主线、1 个每日和 1 个 Boss；支线任务可选。后端会校验任务数量、类型、难度、标题和描述后再写入数据库。
+说明：任务生成使用 DeepSeek `deepseek-v4-flash` 模型调用 `POST /chat/completions`。任务只能由 AI 生成，后端不使用本地模板兜底。生成结果必须包含 3 到 6 个副本任务，且至少包含 1 个主线、1 个每日和 1 个 Boss；支线任务可选。后端会校验任务数量、类型、难度、标题、描述和模板化标题后再写入数据库；如首次结果是可修复的格式问题，会携带失败原因请求 DeepSeek 重新生成一次。
 
 响应：
 
@@ -592,6 +594,8 @@ avatar
 level
 xp
 ```
+
+说明：`username` 始终为账号注册时的用户名；排行榜不展示个性签名，也不支持在前端修改用户名。
 
 ## 10. AI 日志接口
 

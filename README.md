@@ -42,18 +42,35 @@ npm test
 
 ## 开发维护
 
-后续开发由组长单人完成，历史分工文档已删除。维护规则见：
+项目当前由组长单人维护，历史成员分工提示词已删除。维护、流程和课程材料见：
 
 ```text
 AGENTS.md
 CONTRIBUTING.md
+docs/开发流程.md
+docs/协作文档.md
+docs/审查报告.md
 ```
 
 推荐分支：
 
 ```text
-main
-dev
+main  稳定展示分支
+dev   日常开发与验证分支
+```
+
+
+## 文档导航
+
+```text
+docs/操作手册.md      本地运行、登录注册、功能演示步骤
+docs/API接口规范.md   后端接口、请求响应和错误码
+docs/架构设计.md      模块划分、数据库表和核心流程
+docs/规格说明.md      项目范围、功能需求和非功能需求
+docs/AI-Prompt设计.md DeepSeek 任务生成 Prompt 和校验规则
+docs/开发流程.md      单人维护、验证和发布流程
+docs/协作文档.md      AI Coding 使用记录和课程过程材料
+docs/审查报告.md      代码审查问题与修复记录
 ```
 
 ## 默认测试账号
