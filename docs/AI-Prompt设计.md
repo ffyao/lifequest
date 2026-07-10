@@ -1,16 +1,16 @@
 # LifeQuest AI Prompt 设计文档
 
-> 本文档记录 LifeQuest 任务生成 AI 的 Prompt 设计思路、输入输出规范、示例和兜底策略。可直接用于接入真实大模型接口，也可作为本地模板的设计参考。
+> 本文档记录 LifeQuest 使用 DeepSeek 生成副本任务的 Prompt 设计思路、输入输出规范、示例和失败处理策略。
 
 ## 1. Prompt 目标
 
-将用户输入的长期目标（如"30 天掌握 Vue 开发"）拆解为一组结构化的 RPG 副本任务，包含主线、支线、每日和 Boss 任务，并返回一段 NPC 引导文案，让用户有"进入副本"的游戏代入感。
+将用户输入的长期目标（如"30 天掌握 Vue 开发"）通过 DeepSeek `deepseek-v4-flash` 拆解为一组结构化的 RPG 副本任务，包含主线、支线、每日和 Boss 任务，并返回一段 NPC 引导文案，让用户有"进入副本"的游戏代入感。
 
 具体目标：
 
 - 根据目标标题、描述和分类，自动识别目标领域（学习、健身、阅读、创作、生活等）。
-- 生成 5 个任务，覆盖 main / side / daily / boss 四种类型。
-- 每个任务标注难度（easy / normal / hard / boss）和对应 XP 奖励。
+- 生成 5 个任务，固定为 1 个 main、1 个 side、2 个 daily、1 个 boss。
+- 每个任务标注难度（easy / normal / hard / boss），后端根据难度统一计算 XP 奖励，模型无需决定 XP。
 - 返回一条 NPC 文案，风格为 RPG 向导鼓励语。
 - 输出为 JSON，可直接被后端 `aiService.generateTasks` 消费。
 
@@ -26,7 +26,7 @@ Prompt 输入为用户创建的目标对象：
 
 ## 3. 输出 JSON Schema
 
-AI 必须返回以下 JSON 结构，字段名和层级与 `aiService.generateTasks` 返回值保持一致：
+AI 必须返回以下 JSON 结构。`xpReward` 不由模型返回，后端会在校验通过后根据 `difficulty` 统一补充：
 
 ```json
 {
@@ -43,7 +43,7 @@ AI 必须返回以下 JSON 结构，字段名和层级与 `aiService.generateTas
       "minItems": 5,
       "items": {
         "type": "object",
-        "required": ["type", "difficulty", "title", "description", "xpReward"],
+        "required": ["type", "difficulty", "title", "description"],
         "properties": {
           "type": {
             "type": "string",
@@ -60,11 +60,6 @@ AI 必须返回以下 JSON 结构，字段名和层级与 `aiService.generateTas
           "description": {
             "type": "string",
             "description": "任务描述，说明具体要做什么"
-          },
-          "xpReward": {
-            "type": "integer",
-            "description": "经验值奖励，需与难度匹配",
-            "enum": [20, 40, 80, 150]
           }
         }
       }
@@ -101,8 +96,8 @@ boss   Boss 任务，阶段性高难度挑战
 规则：
 1. 识别目标所属领域（学习、健身、阅读、创作、生活）。
 2. 生成恰好 5 个任务，类型覆盖 main、side、daily、boss。
-3. 每个任务包含 type、difficulty、title、description、xpReward 五个字段。
-4. difficulty 与 xpReward 必须匹配：easy=20，normal=40，hard=80，boss=150。
+3. 每个任务包含 type、difficulty、title、description 四个字段。
+4. boss 类型任务的 difficulty 必须为 boss，非 boss 类型任务不能使用 boss 难度。
 5. 返回一条 npcMessage，风格为 RPG 向导的鼓励语，不超过 40 字。
 6. 仅输出 JSON，不要输出任何解释或 Markdown 代码块标记。
 ```
@@ -120,7 +115,7 @@ boss   Boss 任务，阶段性高难度挑战
 {
   "npcMessage": "勇者，副本已开启...",
   "tasks": [
-    { "type": "main", "difficulty": "normal", "title": "...", "description": "...", "xpReward": 40 }
+    { "type": "main", "difficulty": "normal", "title": "...", "description": "..." }
   ]
 }
 ```
@@ -128,17 +123,24 @@ boss   Boss 任务，阶段性高难度挑战
 ### 4.3 调用示例（伪代码）
 
 ```javascript
-const response = await fetch('https://api.example-llm.com/v1/chat/completions', {
+const response = await fetch('https://api.deepseek.com/chat/completions', {
   method: 'POST',
-  headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
   body: JSON.stringify({
-    model: 'gpt-4o-mini',
+    model: 'deepseek-v4-flash',
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: `请为以下目标生成副本任务：\n目标标题：${goal.title}\n目标描述：${goal.description}\n目标分类：${goal.category}` }
+      { role: 'user', content: JSON.stringify({ goal, outputLanguage: 'zh-CN' }) }
     ],
-    temperature: 0.8,
-    response_format: { type: 'json_object' }
+    thinking: { type: 'disabled' },
+    response_format: { type: 'json_object' },
+    temperature: 0.7,
+    max_tokens: 1600,
+    stream: false,
+    user_id: `lifequest-${userId}`
   })
 });
 ```
@@ -191,10 +193,10 @@ const response = await fetch('https://api.example-llm.com/v1/chat/completions', 
     },
     {
       "type": "boss",
-      "difficulty": "hard",
+      "difficulty": "boss",
       "title": "完成一个实战小作品",
       "description": "用 JavaScript 完成一个可展示的 DOM 交互小 Demo。",
-      "xpReward": 80
+      "xpReward": 150
     }
   ]
 }
@@ -248,64 +250,60 @@ const response = await fetch('https://api.example-llm.com/v1/chat/completions', 
     },
     {
       "type": "boss",
-      "difficulty": "hard",
+      "difficulty": "boss",
       "title": "完成周度挑战跑",
       "description": "完成一次比平时更长距离或更高配速的挑战跑。",
-      "xpReward": 80
+      "xpReward": 150
     }
   ]
 }
 ```
 
-## 7. AI 输出失败时的兜底策略
+## 7. DeepSeek 调用与失败处理
 
-当前项目使用本地模板兜底，保证即使没有真实大模型也能正常生成任务。兜底逻辑位于 `server/services/aiService.js` 的 `generateTasks` 方法中。
+当前项目使用 DeepSeek `deepseek-v4-flash` 作为副本任务生成模型。每个用户首次生成任务前必须配置自己的 DeepSeek API Key，配置入口位于目标生成表单，输入框占位文本固定为 `请配置deepseek apikey（前往platform.deepseek.com）`。
 
-### 7.1 兜底触发条件
-
-以下任一情况触发本地模板兜底：
-
-1. 未配置大模型 API Key（当前默认状态）。
-2. 大模型接口请求超时或网络异常。
-3. 大模型返回内容无法解析为合法 JSON。
-4. JSON 结构不符合 Schema（缺少字段、tasks 数量不足、xpReward 不匹配等）。
-
-### 7.2 兜底流程
+### 7.1 生成流程
 
 ```text
-用户创建目标
-  → pickCategory(goal) 根据关键词匹配分类
-  → 命中分类 → 使用该分类模板
-  → 未命中   → 使用 goal.category，若仍无匹配则回退到"生活"
-  → 从模板取出 5 个任务 + 随机选 1 条 NPC 文案
-  → 写入 ai_logs 表（model 字段记为 local-template-v1）
-  → 返回结果
+用户登录
+  → 前端读取 /api/ai/settings 判断是否已配置 API Key
+  → 未配置时要求在目标生成表单填写 DeepSeek API Key
+  → POST /api/tasks/generate
+  → 后端调用 https://api.deepseek.com/chat/completions
+  → 使用 model=deepseek-v4-flash、thinking.disabled、response_format.json_object
+  → 解析 DeepSeek 返回 JSON
+  → 校验 npcMessage、任务数量、任务类型组合、任务难度和文本长度
+  → 校验通过后保存该用户 API Key
+  → 写入 ai_logs 和 tasks
+  → 返回任务列表与 NPC 文案
 ```
 
-### 7.3 本地模板覆盖分类
+### 7.2 后端校验规则
 
-```text
-学习  编程、考试、课程、英语、数学、算法
-健身  跑步、减脂、增肌、运动、体重
-阅读  读书、书籍、小说
-创作  写作、视频、自媒体、绘画、设计
-生活  早睡、自律、整理、习惯、时间
-```
+1. DeepSeek 必须返回合法 JSON，结构为 `{ "npcMessage": string, "tasks": Task[] }`。
+2. `tasks` 必须恰好 5 个。
+3. 类型组合必须是 1 个 `main`、1 个 `side`、2 个 `daily`、1 个 `boss`。
+4. `difficulty` 必须是 `easy`、`normal`、`hard` 或 `boss`。
+5. Boss 类型任务的 `difficulty` 必须为 `boss`，非 Boss 任务不能使用 `boss` 难度。
+6. 后端根据难度计算 XP：`easy=20`、`normal=40`、`hard=80`、`boss=150`。
+7. 校验失败时不保存任务，首次传入的 API Key 也不会因为失败结果而保存。
 
-### 7.4 扩展真实大模型的建议
+### 7.3 失败处理
 
-如后续接入真实大模型，建议在 `aiService.js` 中增加以下逻辑：
+以下情况直接返回错误并中止任务生成：
 
-1. 优先调用大模型接口，设置 10 秒超时。
-2. 解析返回 JSON 并校验 Schema。
-3. 校验失败时，回退到本地模板，并在 `ai_logs.model` 中标记 `fallback-after-llm`。
-4. 大模型返回的 npcMessage 和 tasks 直接透传，不修改 XP 规则。
-5. 在 `ai_logs` 中记录原始大模型返回内容，便于调试和 Prompt 迭代。
+1. 当前用户未配置 DeepSeek API Key。
+2. DeepSeek API Key 格式明显不正确。
+3. DeepSeek 请求超时、网络失败、余额不足、权限错误或频率限制。
+4. DeepSeek 返回空内容、被截断内容或非 JSON 内容。
+5. DeepSeek 返回的任务数量、类型、难度或文本不符合系统规则。
 
-> 重要：无论是否接入大模型，XP 规则（easy=20, normal=40, hard=80, boss=150）和任务类型（main/side/daily/boss）属于公共结构，不可由 AI 单方面改变。如需调整须先与组长确认。
+> 重要：XP 规则和任务类型属于后端公共规则，不允许由模型直接决定。模型只负责生成标题、描述、类型和难度，最终写库前必须经过后端校验。
 
 ## 8. Prompt 迭代记录
 
 | 版本 | 日期       | 变更说明                                         |
 | ---- | ---------- | ------------------------------------------------ |
-| v1   | 2026-07-10 | 初始版本，定义输入输出 Schema、示例和兜底策略。   |
+| v1   | 2026-07-10 | 初始版本，定义输入输出 Schema 和示例。   |
+| v2   | 2026-07-10 | 接入 DeepSeek `deepseek-v4-flash`，补充用户级 API Key、JSON 模式和后端校验策略。 |

@@ -31,6 +31,12 @@ export async function handleApiRequest(request, response, context) {
       return;
     }
 
+    if (method === 'POST' && pathname === '/api/auth/logout') {
+      const result = context.userService.logout(request);
+      sendJson(response, 200, result);
+      return;
+    }
+
     if (method === 'GET' && pathname === '/api/admin/activation-codes') {
       context.userService.requireAdmin(request);
       const activationCodes = context.userService.listActivationCodes();
@@ -43,6 +49,18 @@ export async function handleApiRequest(request, response, context) {
       const activationCode = context.userService.createActivationCode(admin.id, await readJson(request));
       const activationCodes = context.userService.listActivationCodes();
       sendJson(response, 201, { activationCode, ...activationCodes });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/ai/settings') {
+      const settings = context.aiService.getSettings(getCurrentUserId());
+      sendJson(response, 200, { settings });
+      return;
+    }
+
+    if (method === 'PUT' && pathname === '/api/ai/settings/deepseek-key') {
+      const settings = context.aiService.saveDeepseekApiKey(getCurrentUserId(), (await readJson(request)).apiKey);
+      sendJson(response, 200, { settings });
       return;
     }
 
@@ -101,12 +119,24 @@ export async function handleApiRequest(request, response, context) {
     if (method === 'POST' && pathname === '/api/tasks/generate') {
       const userId = getCurrentUserId();
       const body = await readJson(request);
-      const goal = body.goalId
-        ? context.goalService.find(userId, requireNumber(body.goalId, 'goalId'))
-        : context.goalService.create(userId, body.goal || body);
-      const result = context.taskService.generate(userId, goal);
-      const unlockedBadges = context.badgeService.evaluate(userId);
-      sendJson(response, 201, { goal, ...result, unlockedBadges });
+      let goal;
+      let createdGoal = false;
+      try {
+        goal = body.goalId
+          ? context.goalService.find(userId, requireNumber(body.goalId, 'goalId'))
+          : context.goalService.create(userId, body.goal || body);
+        createdGoal = !body.goalId;
+        const result = await context.taskService.generate(userId, goal, {
+          deepseekApiKey: body.deepseekApiKey
+        });
+        const unlockedBadges = context.badgeService.evaluate(userId);
+        sendJson(response, 201, { goal, ...result, unlockedBadges });
+      } catch (error) {
+        if (createdGoal && goal?.id) {
+          context.goalService.remove(userId, goal.id);
+        }
+        throw error;
+      }
       return;
     }
 

@@ -328,6 +328,12 @@ button, input, select, textarea { font-family: inherit; }
   transition: all 0.25s var(--ease-out-expo);
 }
 
+.nav-button {
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
 .nav-link:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.08);
@@ -342,6 +348,75 @@ button, input, select, textarea { font-family: inherit; }
 
 .is-hidden {
   display: none !important;
+}
+
+body[data-view="auth"] .topbar {
+  display: none;
+}
+
+body[data-view="auth"] .hero {
+  padding-top: 0;
+  margin-bottom: 0;
+}
+
+body[data-view="auth"] main {
+  min-height: calc(100vh - 120px);
+  place-items: center;
+}
+
+body[data-view="auth"] .app-shell {
+  padding-top: 40px;
+}
+
+.auth-page {
+  width: min(1080px, 100%);
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.auth-hero {
+  padding: 34px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-brand {
+  margin-bottom: 34px;
+}
+
+.auth-title {
+  margin: 10px 0 14px;
+  font-size: clamp(30px, 5vw, 54px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.auth-desc {
+  max-width: 420px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.auth-card-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.auth-card {
+  padding: 26px;
+}
+
+.auth-card .auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-field-list {
+  display: grid;
+  gap: 10px;
 }
 
 /* =============================================
@@ -1027,6 +1102,12 @@ p { margin: 0; }
   padding: 26px 30px;
 }
 
+.auth-panel .hint {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
 .auth-form {
   display: flex;
   gap: 12px;
@@ -1120,6 +1201,16 @@ p { margin: 0; }
 
 .form-grow { flex: 1; }
 .form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+
+.field-help {
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.field-help.configured {
+  color: var(--success);
+}
 
 /* =============================================
    Character Panel
@@ -1674,8 +1765,61 @@ p { margin: 0; }
 .pill.type-daily { background: rgba(140, 204, 154, 0.14); color: var(--type-daily); border-color: var(--type-daily-border); }
 .pill.type-boss { background: rgba(176, 168, 152, 0.14); color: var(--type-boss); border-color: var(--type-boss-border); }
 
+.task-action-button {
+  min-width: 92px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--r-full);
+  color: #101010;
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
+  box-shadow:
+    0 10px 24px rgba(255, 255, 255, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--ease-out-expo),
+    border-color 0.2s var(--ease-out-expo),
+    box-shadow 0.2s var(--ease-out-expo),
+    background 0.2s var(--ease-out-expo);
+}
+
+.task-action-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow:
+    0 14px 30px rgba(255, 255, 255, 0.16),
+    0 0 0 3px rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.task-action-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.task-action-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.62);
+  outline-offset: 3px;
+}
+
+.task-action-button:disabled {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--border-default);
+  box-shadow: none;
+  cursor: default;
+}
+
 /* Boss button - 深色枪铁质感 */
-.task-card.type-boss button:not(:disabled) {
+.task-card.type-boss .task-action-button:not(:disabled) {
   background: linear-gradient(135deg, #3a3a3a, #1e1e1e, #0a0a0a);
   color: #f0f0f0;
   font-weight: 800;
@@ -2107,6 +2251,7 @@ p { margin: 0; }
   .dashboard-metrics { grid-template-columns: 1fr; }
   .badge-grid { grid-template-columns: 1fr; }
   .admin-code-layout { grid-template-columns: 1fr; }
+  .auth-page { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -2131,4 +2276,6 @@ p { margin: 0; }
   .input-group { flex-direction: column; min-width: 100%; }
   .btn-group { width: 100%; }
   .btn-group button { flex: 1; }
+  .auth-hero, .auth-card { padding: 22px 18px; }
+  .auth-title { font-size: clamp(28px, 8vw, 38px); }
 }

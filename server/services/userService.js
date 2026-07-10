@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 
 const NORMAL_CODE_USES = 1;
 const ADVANCED_CODE_USES = 300;
+const SESSION_TTL_DAYS = 7;
 
 export function createUserService(database) {
   return {
@@ -84,7 +85,7 @@ export function createUserService(database) {
           SELECT users.id, users.username, users.role, users.createdAt
           FROM sessions
           JOIN users ON users.id = sessions.userId
-          WHERE sessions.token = ?
+          WHERE sessions.token = ? AND sessions.expiresAt > CURRENT_TIMESTAMP
         `)
         .get(token);
 
@@ -96,6 +97,16 @@ export function createUserService(database) {
       }
 
       return session;
+    },
+
+    logout(request) {
+      const token = getBearerToken(request);
+      if (!token) {
+        return { ok: true };
+      }
+
+      database.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+      return { ok: true };
     },
 
     requireAdmin(request) {
@@ -241,7 +252,12 @@ function throwActivationError() {
 
 function createSession(database, userId) {
   const token = randomBytes(32).toString('hex');
-  database.prepare('INSERT INTO sessions (userId, token) VALUES (?, ?)').run(userId, token);
+  database
+    .prepare(`
+      INSERT INTO sessions (userId, token, expiresAt)
+      VALUES (?, ?, datetime('now', '+${SESSION_TTL_DAYS} days'))
+    `)
+    .run(userId, token);
   return token;
 }
 

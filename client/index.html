@@ -6,7 +6,7 @@
     <title>LifeQuest 人生副本</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body data-view="auth">
     <!-- SVG 图标符号库（全局复用） -->
     <svg class="icon-lib" aria-hidden="true">
       <defs>
@@ -182,10 +182,6 @@
               <svg class="icon icon-xs"><use href="#i-bolt"/></svg>
               首页
             </a>
-            <a href="#auth" class="nav-link" data-view-link="auth">
-              <svg class="icon icon-xs"><use href="#i-key"/></svg>
-              账号
-            </a>
             <a href="#dashboard" class="nav-link" data-view-link="dashboard">
               <svg class="icon icon-xs"><use href="#i-board"/></svg>
               副本看板
@@ -210,15 +206,19 @@
               <svg class="icon icon-xs"><use href="#i-key"/></svg>
               激活码管理
             </a>
+            <button type="button" id="topLogoutButton" class="nav-link nav-button auth-only is-hidden">
+              <svg class="icon icon-xs"><use href="#i-arrow"/></svg>
+              退出登录
+            </button>
           </div>
         </nav>
 
         <!-- Hero 主视觉区域 -->
-        <section id="home" class="hero-content view-page active" data-view="home">
+        <section id="home" class="hero-content view-page" data-view="home">
           <div class="hero-left">
             <div class="hero-badge">
               <span class="badge-glow"></span>
-              AI Coding 小组项目 · 游戏化目标管理
+              游戏化目标管理
             </div>
             
             <h1 class="hero-title">
@@ -277,10 +277,6 @@
                 开启我的副本
                 <span class="btn-shine"></span>
               </a>
-              <button class="btn-secondary" id="demoLoginButton">
-                <svg class="icon icon-sm"><use href="#i-gamepad"/></svg>
-                使用 Demo 账号
-              </button>
             </div>
           </div>
 
@@ -321,40 +317,70 @@
 
       <main>
         <!-- 登录面板 -->
-        <section id="auth" class="panel auth-panel glass-panel view-page" data-view="auth">
-          <div class="panel-header">
-            <div class="panel-icon">
-              <svg class="icon icon-md"><use href="#i-key"/></svg>
+        <section id="auth" class="auth-page view-page active" data-view="auth">
+          <div class="auth-hero glass-panel">
+            <div class="brand auth-brand">
+              <span class="brand-mark">
+                <svg class="icon icon-sm"><use href="#i-bolt"/></svg>
+              </span>
+              <span class="brand-text">LifeQuest</span>
             </div>
-            <div>
-              <p class="section-label">身份验证</p>
-              <h2>进入你的专属存档</h2>
-            </div>
+            <p class="section-label">身份验证</p>
+            <h1 class="auth-title">进入人生副本任务系统</h1>
+            <p class="auth-desc">登录后进入应用主页。新账号注册需要由管理员发放的激活码。</p>
           </div>
-          
-          <form id="loginForm" class="auth-form">
-            <div class="input-group">
-              <input id="usernameInput" value="demo" placeholder="输入用户名" autocomplete="username" class="input-field" />
-              <input id="passwordInput" value="demo123" type="password" placeholder="输入密码" autocomplete="current-password" class="input-field" />
-              <input id="activationCodeInput" value="LIFEQUEST-ADV-300" placeholder="注册时填写激活码" autocomplete="off" class="input-field" />
-            </div>
-            <div class="btn-group">
-              <button type="submit" class="btn-primary btn-sm">
-                <svg class="icon icon-xs"><use href="#i-arrow"/></svg>
-                登录
-              </button>
-              <button type="button" id="registerButton" class="btn-secondary btn-sm">
-                注册账号
-              </button>
-              <button type="button" id="logoutButton" class="btn-secondary btn-sm">
-                退出
-              </button>
-            </div>
-          </form>
-          
+
+          <div class="auth-card-stack">
+            <article class="panel auth-card glass-panel">
+              <div class="panel-header">
+                <div class="panel-icon">
+                  <svg class="icon icon-md"><use href="#i-key"/></svg>
+                </div>
+                <div>
+                  <p class="section-label">登录</p>
+                  <h2>使用已有账号</h2>
+                </div>
+              </div>
+
+              <form id="loginForm" class="auth-form">
+                <div class="auth-field-list">
+                  <input id="usernameInput" placeholder="用户名" autocomplete="username" class="input-field" />
+                  <input id="passwordInput" type="password" placeholder="密码" autocomplete="current-password" class="input-field" />
+                </div>
+                <button type="submit" class="btn-primary btn-block">
+                  <svg class="icon icon-xs"><use href="#i-arrow"/></svg>
+                  登录并进入应用
+                </button>
+              </form>
+            </article>
+
+            <article class="panel auth-card glass-panel">
+              <div class="panel-header">
+                <div class="panel-icon">
+                  <svg class="icon icon-md"><use href="#i-spark"/></svg>
+                </div>
+                <div>
+                  <p class="section-label">注册</p>
+                  <h2>创建新账号</h2>
+                </div>
+              </div>
+
+              <form id="registerForm" class="auth-form">
+                <div class="auth-field-list">
+                  <input id="registerUsernameInput" placeholder="新用户名" autocomplete="username" class="input-field" />
+                  <input id="registerPasswordInput" type="password" placeholder="新密码" autocomplete="new-password" class="input-field" />
+                  <input id="activationCodeInput" placeholder="激活码" autocomplete="off" class="input-field" />
+                </div>
+                <button type="submit" id="registerButton" class="btn-secondary btn-block">
+                  注册并进入应用
+                </button>
+              </form>
+            </article>
+          </div>
+
           <p class="auth-hint" id="authHint">
             <svg class="icon icon-xs"><use href="#i-bulb"/></svg>
-            <span>默认账号：demo / demo123；管理员：admin / admin123456</span>
+            <span>请登录或使用有效激活码注册。</span>
           </p>
         </section>
 
@@ -502,6 +528,12 @@
             <div class="form-group">
               <label class="field-label">目标描述（可选）</label>
               <textarea id="goalDescription" placeholder="补充你的目标背景、期望成果..." class="textarea-field">希望完成基础语法、组件通信、路由和一个完整小项目。</textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">DeepSeek API Key</label>
+              <input id="deepseekApiKeyInput" type="password" placeholder="请配置deepseek apikey（前往platform.deepseek.com）" autocomplete="off" class="input-field" />
+              <p class="field-help" id="deepseekKeyHint">首次生成副本任务前需要配置，生成成功后后续无需重复输入。</p>
             </div>
 
             <button type="submit" class="btn-primary btn-lg btn-block">

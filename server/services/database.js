@@ -29,7 +29,15 @@ function migrate(database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       userId INTEGER NOT NULL,
       token TEXT NOT NULL UNIQUE,
+      expiresAt TEXT NOT NULL,
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_settings (
+      userId INTEGER PRIMARY KEY,
+      deepseekApiKey TEXT,
+      updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -118,6 +126,8 @@ function migrate(database) {
     );
   `);
   ensureColumn(database, 'users', 'role', "TEXT NOT NULL DEFAULT 'user'");
+  ensureColumn(database, 'sessions', 'expiresAt', 'TEXT');
+  database.exec("UPDATE sessions SET expiresAt = datetime(createdAt, '+7 days') WHERE expiresAt IS NULL");
 }
 
 function seed(database) {

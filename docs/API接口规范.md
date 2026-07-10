@@ -15,7 +15,7 @@ Content-Type: application/json
 Authorization: Bearer <登录或注册返回的 token>
 ```
 
-说明：除注册、登录接口外，业务接口都需要登录后携带 `Authorization` 请求头。未登录访问会返回 `401 UNAUTHORIZED`。
+说明：除注册、登录接口外，业务接口都需要登录后携带 `Authorization` 请求头。未登录访问会返回 `401 UNAUTHORIZED`。登录或注册成功后，会话有效期为 7 天。
 
 ## 2. 用户接口
 
@@ -83,6 +83,14 @@ POST /api/auth/login
 ```text
 GET /api/auth/me
 ```
+
+### 注销当前会话
+
+```text
+POST /api/auth/logout
+```
+
+说明：调用后服务端会删除当前 token 对应的会话，前端应同步清理本地登录状态。
 
 ## 3. 管理员激活码接口
 
@@ -189,7 +197,42 @@ PUT /api/character
 }
 ```
 
-## 5. 目标接口
+## 5. AI 配置接口
+
+### 查询当前用户 AI 配置状态
+
+```text
+GET /api/ai/settings
+```
+
+响应：
+
+```json
+{
+  "settings": {
+    "deepseekKeyConfigured": true,
+    "model": "deepseek-v4-flash"
+  }
+}
+```
+
+### 保存 DeepSeek API Key
+
+```text
+PUT /api/ai/settings/deepseek-key
+```
+
+请求：
+
+```json
+{
+  "apiKey": "sk-..."
+}
+```
+
+说明：每个用户首次生成副本任务前需要配置自己的 DeepSeek API Key。前端也可以在 `POST /api/tasks/generate` 时随请求传入 `deepseekApiKey`，后端会在 DeepSeek 调用成功后保存。
+
+## 6. 目标接口
 
 ### 查询目标列表
 
@@ -307,7 +350,7 @@ DELETE /api/goals/:id
 404 GOAL_NOT_FOUND       目标不存在或不属于当前用户
 ```
 
-## 6. 任务接口
+## 7. 任务接口
 
 ### 查询任务列表
 
@@ -327,21 +370,25 @@ POST /api/tasks/generate
 {
   "title": "30 天掌握 Vue 项目开发",
   "description": "完成基础语法、组件通信、路由和项目实战。",
-  "category": "学习"
+  "category": "学习",
+  "deepseekApiKey": "sk-..."
 }
 ```
+
+说明：任务生成使用 DeepSeek `deepseek-v4-flash` 模型调用 `POST /chat/completions`。生成结果必须包含 5 个副本任务：1 个主线、1 个支线、2 个每日、1 个 Boss。后端会校验任务类型、难度、标题和描述后再写入数据库。
 
 响应：
 
 ```json
 {
-  "provider": "local-template",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
   "category": "学习",
-  "npcMessage": "知识副本已经开启，勇者先从最小的一步开始。",
+  "npcMessage": "DeepSeek 已为你开启本次人生副本。",
   "tasks": [
     {
       "id": 1,
-      "title": "绘制知识地图：30 天掌握 Vue 项目开发",
+      "title": "拆解学习路线",
       "type": "main",
       "difficulty": "normal",
       "xpReward": 40,
@@ -457,7 +504,7 @@ DELETE /api/tasks/:id
 404 TASK_NOT_FOUND        任务不存在或不属于当前用户
 ```
 
-## 7. 徽章接口
+## 8. 徽章接口
 
 ```text
 GET /api/badges
@@ -465,7 +512,7 @@ GET /api/badges
 
 返回全部徽章和当前用户已解锁徽章。
 
-## 8. 排行榜接口
+## 9. 排行榜接口
 
 ```text
 GET /api/ranking
@@ -482,10 +529,10 @@ level
 xp
 ```
 
-## 9. AI 日志接口
+## 10. AI 日志接口
 
 ```text
 GET /api/ai/logs
 ```
 
-用于查看 AI/本地模板生成记录，便于课程过程佐证。
+用于查看 DeepSeek 任务生成记录，便于课程过程佐证。

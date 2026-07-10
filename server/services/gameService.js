@@ -37,44 +37,69 @@ export function createGameService(database, badgeService) {
     },
 
     completeTask(userId, taskId) {
-      const task = database.prepare('SELECT * FROM tasks WHERE userId = ? AND id = ?').get(userId, taskId);
-      if (!task) {
-        const error = new Error('任务不存在');
-        error.statusCode = 404;
-        error.code = 'TASK_NOT_FOUND';
+      database.exec('BEGIN IMMEDIATE');
+      try {
+        const task = database.prepare('SELECT * FROM tasks WHERE userId = ? AND id = ?').get(userId, taskId);
+        if (!task) {
+          const error = new Error('任务不存在');
+          error.statusCode = 404;
+          error.code = 'TASK_NOT_FOUND';
+          throw error;
+        }
+
+        if (task.status === 'done') {
+          const character = getCharacterByUserId(database, userId);
+          database.exec('COMMIT');
+          return {
+            task,
+            character,
+            unlockedBadges: [],
+            xpGained: 0
+          };
+        }
+
+        const completeResult = database
+          .prepare("UPDATE tasks SET status = 'done', completedAt = CURRENT_TIMESTAMP WHERE id = ? AND userId = ? AND status != 'done'")
+          .run(taskId, userId);
+
+        if (completeResult.changes === 0) {
+          const currentTask = database.prepare('SELECT * FROM tasks WHERE userId = ? AND id = ?').get(userId, taskId);
+          const character = getCharacterByUserId(database, userId);
+          database.exec('COMMIT');
+          return {
+            task: currentTask,
+            character,
+            unlockedBadges: [],
+            xpGained: 0
+          };
+        }
+
+        const character = getCharacterByUserId(database, userId);
+        const newXp = character.xp + task.xpReward;
+        const newLevel = calculateLevel(newXp);
+        const newCoins = character.coins + Math.max(5, Math.floor(task.xpReward / 4));
+        const newStreak = Math.max(character.streakDays, calculateStreak(database, userId));
+
+        database
+          .prepare('UPDATE characters SET xp = ?, level = ?, coins = ?, streakDays = ? WHERE userId = ?')
+          .run(newXp, newLevel, newCoins, newStreak, userId);
+
+        const unlockedBadges = badgeService.evaluate(userId);
+        const updatedTask = database.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+        const updatedCharacter = getCharacterByUserId(database, userId);
+
+        database.exec('COMMIT');
+
+        return {
+          task: updatedTask,
+          character: updatedCharacter,
+          unlockedBadges,
+          xpGained: task.xpReward
+        };
+      } catch (error) {
+        database.exec('ROLLBACK');
         throw error;
       }
-
-      if (task.status === 'done') {
-        return {
-          task,
-          character: this.getCharacter(userId),
-          unlockedBadges: [],
-          xpGained: 0
-        };
-      }
-
-      database.prepare('UPDATE tasks SET status = ?, completedAt = CURRENT_TIMESTAMP WHERE id = ?').run('done', taskId);
-
-      const character = this.getCharacter(userId);
-      const newXp = character.xp + task.xpReward;
-      const newLevel = calculateLevel(newXp);
-      const newCoins = character.coins + Math.max(5, Math.floor(task.xpReward / 4));
-      const newStreak = Math.max(character.streakDays, calculateStreak(database, userId));
-
-      database
-        .prepare('UPDATE characters SET xp = ?, level = ?, coins = ?, streakDays = ? WHERE userId = ?')
-        .run(newXp, newLevel, newCoins, newStreak, userId);
-
-      const unlockedBadges = badgeService.evaluate(userId);
-      const updatedTask = database.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-
-      return {
-        task: updatedTask,
-        character: this.getCharacter(userId),
-        unlockedBadges,
-        xpGained: task.xpReward
-      };
     },
 
     getRanking() {
@@ -101,6 +126,17 @@ export function calculateLevel(xp) {
   return Math.floor(Number(xp || 0) / 100) + 1;
 }
 
+function getCharacterByUserId(database, userId) {
+  const character = database.prepare('SELECT * FROM characters WHERE userId = ?').get(userId);
+  if (!character) {
+    const error = new Error('角色不存在');
+    error.statusCode = 404;
+    error.code = 'CHARACTER_NOT_FOUND';
+    throw error;
+  }
+  return character;
+}
+
 function calculateStreak(database, userId) {
   const rows = database
     .prepare(`
@@ -116,5 +152,17 @@ function calculateStreak(database, userId) {
     return 0;
   }
 
-  return rows.length;
+  let streak = 0;
+  const currentDay = new Date();
+
+  for (const row of rows) {
+    const expectedDay = currentDay.toISOString().slice(0, 10);
+    if (row.day !== expectedDay) {
+      break;
+    }
+    streak += 1;
+    currentDay.setUTCDate(currentDay.getUTCDate() - 1);
+  }
+
+  return streak;
 }

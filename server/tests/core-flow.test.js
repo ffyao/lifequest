@@ -2,6 +2,46 @@ import assert from 'node:assert/strict';
 import { initializeDatabase } from '../services/database.js';
 import { createAppContext } from '../services/appContext.js';
 
+let deepseekRequestCount = 0;
+const deepseekAuthorizations = [];
+
+globalThis.fetch = async (url, options = {}) => {
+  deepseekRequestCount += 1;
+  assert.equal(url, 'https://api.deepseek.com/chat/completions');
+  const body = JSON.parse(options.body);
+  assert.equal(body.model, 'deepseek-v4-flash');
+  assert.equal(body.response_format.type, 'json_object');
+  assert.equal(body.thinking.type, 'disabled');
+  assert.equal(body.stream, false);
+  assert.equal(options.headers.Authorization, 'Bearer sk-test-deepseek-key');
+  deepseekAuthorizations.push(options.headers.Authorization);
+
+  return {
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                npcMessage: 'DeepSeek 已为你开启本次人生副本。',
+                tasks: [
+                  { type: 'main', difficulty: 'normal', title: '拆解学习路线', description: '列出本次复习的知识模块和每日推进顺序。' },
+                  { type: 'side', difficulty: 'easy', title: '整理参考资料', description: '收集三份高质量资料并标注使用场景。' },
+                  { type: 'daily', difficulty: 'easy', title: '完成专注学习', description: '完成一次二十五分钟无打断学习并记录结果。' },
+                  { type: 'daily', difficulty: 'normal', title: '输出学习笔记', description: '用自己的语言总结今天最关键的三个知识点。' },
+                  { type: 'boss', difficulty: 'boss', title: '完成综合演练', description: '用本次复习内容完成一个可检查的小练习。' }
+                ]
+              })
+            }
+          }
+        ]
+      };
+    }
+  };
+};
+
 const database = initializeDatabase();
 const context = createAppContext(database);
 const suffix = Date.now();
@@ -29,6 +69,26 @@ const registered = context.userService.register({
 });
 const user = registered.user;
 assert.ok(registered.token);
+assert.equal(context.userService.authenticateRequest(authRequest(registered.token)).id, user.id);
+const sessionWindow = database
+  .prepare('SELECT julianday(expiresAt) - julianday(createdAt) AS days FROM sessions WHERE token = ?')
+  .get(registered.token);
+assert.ok(sessionWindow.days >= 6.9 && sessionWindow.days <= 7.1);
+assert.deepEqual(context.userService.logout(authRequest(registered.token)), { ok: true });
+assert.throws(
+  () => context.userService.authenticateRequest(authRequest(registered.token)),
+  (error) => error.code === 'SESSION_EXPIRED' && error.statusCode === 401
+);
+
+const expiringLogin = context.userService.login({
+  username: `tester-${suffix}`,
+  password: 'test1234'
+});
+database.prepare("UPDATE sessions SET expiresAt = datetime('now', '-1 minute') WHERE token = ?").run(expiringLogin.token);
+assert.throws(
+  () => context.userService.authenticateRequest(authRequest(expiringLogin.token)),
+  (error) => error.code === 'SESSION_EXPIRED' && error.statusCode === 401
+);
 
 assert.throws(
   () => context.userService.register({
@@ -52,7 +112,7 @@ const advancedAfter = activationCodes.advancedCodes.find((code) => code.code ===
 assert.equal(advancedAfter.remainingUses, advancedBefore - 1);
 assert.ok(activationCodes.normalCodes.every((code) => code.code !== normalCode.code));
 
-console.log('认证测试通过：注册需激活码、普通码一次性、高级码递减、管理员可生成和查看激活码');
+console.log('认证测试通过：注册需激活码、普通码一次性、高级码递减、管理员可生成和查看激活码、会话注销和过期生效');
 
 context.gameService.createOrUpdateCharacter(user.id, {
   nickname: '测试勇者',
@@ -65,9 +125,31 @@ const goal = context.goalService.create(user.id, {
   category: '学习'
 });
 
-const generated = context.taskService.generate(user.id, goal);
+assert.equal(context.aiService.getSettings(user.id).deepseekKeyConfigured, false);
+await assert.rejects(
+  () => context.taskService.generate(user.id, goal),
+  (error) => error.code === 'DEEPSEEK_API_KEY_REQUIRED' && error.statusCode === 400
+);
+
+const generated = await context.taskService.generate(user.id, goal, {
+  deepseekApiKey: 'sk-test-deepseek-key'
+});
 assert.equal(generated.tasks.length, 5);
+assert.equal(generated.provider, 'deepseek');
+assert.equal(generated.model, 'deepseek-v4-flash');
 assert.ok(generated.tasks.every((task) => task.status === 'todo'));
+assert.equal(context.aiService.getSettings(user.id).deepseekKeyConfigured, true);
+assert.equal(deepseekRequestCount, 1);
+
+const secondGoal = context.goalService.create(user.id, {
+  title: '7 天完成算法基础训练',
+  description: '每天练习数组、字符串和递归题目。',
+  category: '学习'
+});
+const generatedWithSavedKey = await context.taskService.generate(user.id, secondGoal);
+assert.equal(generatedWithSavedKey.tasks.length, 5);
+assert.equal(deepseekRequestCount, 2);
+assert.deepEqual(deepseekAuthorizations, ['Bearer sk-test-deepseek-key', 'Bearer sk-test-deepseek-key']);
 
 const before = context.gameService.getCharacter(user.id);
 const completed = context.taskService.complete(user.id, generated.tasks[0].id);
@@ -199,3 +281,11 @@ assert.throws(
 console.log('B2 测试通过：目标删除接口（含任务 goalId 置空、权限隔离）');
 
 console.log('全部测试通过：核心流程 + 目标更新/删除 + 任务编辑 + 权限隔离');
+
+function authRequest(token) {
+  return {
+    headers: {
+      authorization: `Bearer ${token}`
+    }
+  };
+}

@@ -6,34 +6,49 @@ export function createTaskService(database, gameService, aiService) {
         .all(userId);
     },
 
-    generate(userId, goal) {
-      const aiResult = aiService.generateTasks(userId, goal);
+    async generate(userId, goal, options = {}) {
+      const aiResult = await aiService.generateTasks(userId, goal, options);
       const insert = database.prepare(`
         INSERT INTO tasks (userId, goalId, title, description, type, difficulty, xpReward, status, dueDate)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const dueDate = new Date().toISOString().slice(0, 10);
-      const tasks = aiResult.tasks.map((task) => {
-        const result = insert.run(
-          userId,
-          goal.id,
-          task.title,
-          task.description,
-          task.type,
-          task.difficulty,
-          task.xpReward,
-          'todo',
-          dueDate
-        );
-        return database.prepare('SELECT * FROM tasks WHERE id = ?').get(Number(result.lastInsertRowid));
-      });
 
-      return {
-        npcMessage: aiResult.npcMessage,
-        provider: aiResult.provider,
-        category: aiResult.category,
-        tasks
-      };
+      database.exec('BEGIN IMMEDIATE');
+      try {
+        const tasks = aiResult.tasks.map((task) => {
+          const result = insert.run(
+            userId,
+            goal.id,
+            task.title,
+            task.description,
+            task.type,
+            task.difficulty,
+            task.xpReward,
+            'todo',
+            dueDate
+          );
+          return database.prepare('SELECT * FROM tasks WHERE id = ?').get(Number(result.lastInsertRowid));
+        });
+
+        if (options.deepseekApiKey) {
+          aiService.saveDeepseekApiKey(userId, options.deepseekApiKey);
+        }
+        aiService.recordGeneration(userId, goal, aiResult);
+
+        database.exec('COMMIT');
+
+        return {
+          npcMessage: aiResult.npcMessage,
+          provider: aiResult.provider,
+          model: aiResult.model,
+          category: aiResult.category,
+          tasks
+        };
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
     },
 
     update(userId, taskId, input) {

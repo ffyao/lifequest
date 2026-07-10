@@ -55,28 +55,34 @@ const state = {
   badges: [],
   userBadges: [],
   ranking: [],
+  aiSettings: {
+    deepseekKeyConfigured: false,
+    model: 'deepseek-v4-flash'
+  },
   taskFilter: 'all',
-  currentView: 'home'
+  currentView: 'auth'
 };
 
 const validViews = new Set(['home', 'auth', 'dashboard', 'goals', 'tasks', 'badges', 'ranking', 'admin']);
-const protectedViews = new Set(['dashboard', 'goals', 'tasks', 'badges', 'ranking', 'admin']);
+const protectedViews = new Set(['home', 'dashboard', 'goals', 'tasks', 'badges', 'ranking', 'admin']);
 
 // =============================================
 // DOM Cache
 // =============================================
 const elements = {
-  demoLoginButton: document.querySelector('#demoLoginButton'),
+  topLogoutButton: document.querySelector('#topLogoutButton'),
   heroNpc: document.querySelector('#heroNpc'),
   levelStars: document.querySelector('#levelStars'),
   views: document.querySelectorAll('[data-view]'),
   viewLinks: document.querySelectorAll('[data-view-link]'),
 
   loginForm: document.querySelector('#loginForm'),
+  registerForm: document.querySelector('#registerForm'),
   registerButton: document.querySelector('#registerButton'),
-  logoutButton: document.querySelector('#logoutButton'),
   usernameInput: document.querySelector('#usernameInput'),
   passwordInput: document.querySelector('#passwordInput'),
+  registerUsernameInput: document.querySelector('#registerUsernameInput'),
+  registerPasswordInput: document.querySelector('#registerPasswordInput'),
   activationCodeInput: document.querySelector('#activationCodeInput'),
   authHint: document.querySelector('#authHint'),
 
@@ -84,6 +90,8 @@ const elements = {
   goalTitle: document.querySelector('#goalTitle'),
   goalCategory: document.querySelector('#goalCategory'),
   goalDescription: document.querySelector('#goalDescription'),
+  deepseekApiKeyInput: document.querySelector('#deepseekApiKeyInput'),
+  deepseekKeyHint: document.querySelector('#deepseekKeyHint'),
 
   refreshButton: document.querySelector('#refreshButton'),
 
@@ -104,6 +112,7 @@ const elements = {
   taskList: document.querySelector('#taskList'),
   badgeList: document.querySelector('#badgeList'),
   rankingList: document.querySelector('#rankingList'),
+  authOnly: document.querySelectorAll('.auth-only'),
   adminOnly: document.querySelectorAll('.admin-only'),
   refreshActivationCodesButton: document.querySelector('#refreshActivationCodesButton'),
   createNormalCodeButton: document.querySelector('#createNormalCodeButton'),
@@ -120,10 +129,8 @@ const elements = {
 // Event Listeners
 // =============================================
 
-elements.demoLoginButton.addEventListener('click', async () => {
-  elements.usernameInput.value = 'demo';
-  elements.passwordInput.value = 'demo123';
-  await login();
+elements.topLogoutButton.addEventListener('click', async () => {
+  await logout();
 });
 
 elements.loginForm.addEventListener('submit', async (event) => {
@@ -131,9 +138,14 @@ elements.loginForm.addEventListener('submit', async (event) => {
   await login();
 });
 
-elements.registerButton.addEventListener('click', async () => {
-  const username = elements.usernameInput.value.trim();
-  const password = elements.passwordInput.value;
+elements.registerForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  await register();
+});
+
+async function register() {
+  const username = elements.registerUsernameInput.value.trim();
+  const password = elements.registerPasswordInput.value;
   const activationCode = elements.activationCodeInput.value.trim();
   if (!username || !password || !activationCode) {
     showToast('注册需要用户名、密码和激活码');
@@ -146,19 +158,15 @@ elements.registerButton.addEventListener('click', async () => {
     });
     setSession(response.user, response.token);
     showToast(`注册成功：${response.user.username}`);
+    await loadAiSettings();
     await refreshAll();
     navigateTo('dashboard');
   } catch (error) {
     console.error('Registration failed:', error);
+    showAuthHint(error.message || '注册失败');
     showToast(error.message || '注册失败');
   }
-});
-
-elements.logoutButton.addEventListener('click', () => {
-  clearSession();
-  showToast('已退出登录');
-  navigateTo('auth');
-});
+}
 
 elements.goalForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -173,6 +181,14 @@ elements.goalForm.addEventListener('submit', async (event) => {
     category: elements.goalCategory.value,
     description: elements.goalDescription.value.trim()
   };
+  const deepseekApiKey = elements.deepseekApiKeyInput.value.trim();
+  if (deepseekApiKey) {
+    payload.deepseekApiKey = deepseekApiKey;
+  } else if (!state.aiSettings.deepseekKeyConfigured) {
+    showToast('请先配置 DeepSeek API Key');
+    elements.deepseekApiKeyInput.focus();
+    return;
+  }
 
   try {
     const response = await api('/api/tasks/generate', {
@@ -185,6 +201,10 @@ elements.goalForm.addEventListener('submit', async (event) => {
       elements.heroNpc.textContent = response.npcMessage;
     }
 
+    if (deepseekApiKey) {
+      elements.deepseekApiKeyInput.value = '';
+    }
+    await loadAiSettings();
     showToast(`已生成 ${response.tasks.length} 个${payload.category || ''}副本任务`);
     await refreshAll();
     navigateTo('tasks');
@@ -244,10 +264,12 @@ async function login() {
     });
     setSession(response.user, response.token);
     showToast(`欢迎回来，${response.user.username}`);
+    await loadAiSettings();
     await refreshAll();
     navigateTo('dashboard');
   } catch (error) {
     console.error('Login failed:', error);
+    showAuthHint(error.message || '登录失败');
     showToast(error.message || '登录失败');
   }
 }
@@ -265,6 +287,7 @@ function setSession(user, token) {
     <span>当前用户：<strong>${escapeHtml(user.username)}</strong>（${user.role === 'admin' ? '管理员' : '普通用户'}）</span>
   `;
   updateAdminVisibility();
+  updateAuthVisibility();
 }
 
 function clearSession() {
@@ -276,10 +299,31 @@ function clearSession() {
   state.badges = [];
   state.userBadges = [];
   state.ranking = [];
+  state.aiSettings = {
+    deepseekKeyConfigured: false,
+    model: 'deepseek-v4-flash'
+  };
+  elements.deepseekApiKeyInput.value = '';
+  renderAiSettings();
   localStorage.removeItem('lifequest:authToken');
   localStorage.removeItem('lifequest:userId');
   updateAdminVisibility();
+  updateAuthVisibility();
   renderLoggedOutState();
+}
+
+async function logout() {
+  if (state.authToken) {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.warn('Logout request failed:', error);
+    }
+  }
+
+  clearSession();
+  showToast('已退出登录');
+  navigateTo('auth');
 }
 
 async function refreshAll() {
@@ -318,10 +362,7 @@ async function refreshAll() {
 }
 
 function renderLoggedOutState() {
-  elements.authHint.innerHTML = `
-    <svg class="icon icon-xs"><use href="#i-bulb"/></svg>
-    <span>请先登录或使用激活码注册。默认账号：demo / demo123；管理员：admin / admin123456</span>
-  `;
+  showAuthHint('请登录已有账号，或使用有效激活码注册新账号。');
   elements.characterName.textContent = '请先登录';
   elements.characterCareer.textContent = '未进入系统';
   elements.characterLevel.textContent = 'Lv.0';
@@ -340,6 +381,33 @@ function renderLoggedOutState() {
   elements.rankingList.innerHTML = loggedOutEmptyState('排行榜需要登录后查看');
   elements.advancedCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看高级激活码');
   elements.normalCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看普通激活码');
+}
+
+async function loadAiSettings() {
+  if (!state.authToken) return;
+
+  try {
+    const response = await api('/api/ai/settings');
+    state.aiSettings = response.settings || state.aiSettings;
+    renderAiSettings();
+  } catch (error) {
+    console.error('Load AI settings failed:', error);
+  }
+}
+
+function renderAiSettings() {
+  const configured = Boolean(state.aiSettings.deepseekKeyConfigured);
+  elements.deepseekKeyHint.textContent = configured
+    ? `已配置 DeepSeek API Key，当前模型：${state.aiSettings.model || 'deepseek-v4-flash'}。如需更换，请重新输入后生成。`
+    : '首次生成副本任务前需要配置，生成成功后后续无需重复输入。';
+  elements.deepseekKeyHint.classList.toggle('configured', configured);
+}
+
+function showAuthHint(message) {
+  elements.authHint.innerHTML = `
+    <svg class="icon icon-xs"><use href="#i-bulb"/></svg>
+    <span>${escapeHtml(message)}</span>
+  `;
 }
 
 function loggedOutEmptyState(message) {
@@ -511,7 +579,7 @@ function renderTasks() {
               : 'background: rgba(255,255,255,0.05); color: var(--text-muted);'}">${isDone ? '已通关' : '待挑战'}</span>
           </div>
         </div>
-        <button data-complete="${task.id}" ${isDone ? 'disabled' : ''}>
+        <button class="task-action-button" data-complete="${task.id}" ${isDone ? 'disabled' : ''}>
           ${isDone ? '已通关' : '完成'}
         </button>
       </article>
@@ -524,13 +592,17 @@ function renderTasks() {
 }
 
 async function handleCompleteTask(event) {
-  const taskId = event.currentTarget.getAttribute('data-complete');
+  const button = event.currentTarget;
+  const taskId = button.getAttribute('data-complete');
   if (!taskId) return;
+
+  button.disabled = true;
+  button.textContent = '处理中';
 
   try {
     const response = await api(`/api/tasks/${taskId}/complete`, { method: 'PATCH' });
 
-    let message = '任务完成！获得经验值';
+    let message = response.xpGained ? '任务完成，获得经验值' : '任务已完成，无需重复提交';
     if (response.unlockedBadges && response.unlockedBadges.length > 0) {
       const badgeNames = response.unlockedBadges.map(badge => badge.name).join('、');
       message += `，解锁徽章：${badgeNames}`;
@@ -543,6 +615,8 @@ async function handleCompleteTask(event) {
     await refreshAll();
   } catch (error) {
     console.error('Complete task failed:', error);
+    button.disabled = false;
+    button.textContent = '完成';
     showToast('完成任务失败，请重试');
   }
 }
@@ -728,11 +802,11 @@ function showToast(message) {
 
 function getViewFromHash() {
   const view = window.location.hash.replace('#', '').trim();
-  return validViews.has(view) ? view : 'home';
+  return validViews.has(view) ? view : 'auth';
 }
 
 function navigateTo(view) {
-  const targetView = validViews.has(view) ? view : 'home';
+  const targetView = validViews.has(view) ? view : 'auth';
   if (window.location.hash === `#${targetView}`) {
     setActiveView(targetView);
     return;
@@ -741,7 +815,10 @@ function navigateTo(view) {
 }
 
 function setActiveView(view) {
-  let targetView = validViews.has(view) ? view : 'home';
+  let targetView = validViews.has(view) ? view : 'auth';
+  if (targetView === 'auth' && state.authToken && state.user) {
+    targetView = 'dashboard';
+  }
   if (protectedViews.has(targetView) && !state.authToken) {
     targetView = 'auth';
   }
@@ -779,6 +856,13 @@ function updateAdminVisibility() {
   }
 }
 
+function updateAuthVisibility() {
+  const isLoggedIn = Boolean(state.authToken && state.user);
+  elements.authOnly.forEach(element => {
+    element.classList.toggle('is-hidden', !isLoggedIn);
+  });
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -809,6 +893,7 @@ function animateValue(element, targetValue) {
 
 async function init() {
   updateAdminVisibility();
+  updateAuthVisibility();
   setActiveView(getViewFromHash());
 
   if (!state.authToken) {
@@ -819,8 +904,10 @@ async function init() {
   try {
     const response = await api('/api/auth/me');
     setSession(response.user);
+    await loadAiSettings();
     await refreshAll();
-    setActiveView(getViewFromHash());
+    const initialView = getViewFromHash();
+    setActiveView(initialView === 'auth' ? 'dashboard' : initialView);
   } catch (error) {
     console.error('Session restore failed:', error);
     clearSession();
