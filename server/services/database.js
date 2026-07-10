@@ -127,16 +127,18 @@ function seed(database) {
       VALUES (?, ?, ?, ?, ?)
     `);
     [
-      ['首次启程', '创建人生角色，正式踏入 LifeQuest 副本世界，冒险从此刻开始。', '🚀', 'character_created', 1],
-      ['目标制定者', '立下第一个长期目标，为勇者指明前行的方向。', '🎯', 'goal_created', 1],
-      ['副本挑战者', '完成第一个副本任务，证明你有执行力的勇气。', '⚔️', 'task_completed', 1],
-      ['连击达人', '连续 3 天完成任务，连击之光在你身上燃烧。', '🔥', 'streak_days', 3],
-      ['主线推进者', '完成 3 个主线任务，主线剧情因你而向前推进。', '📜', 'main_completed', 3],
-      ['Boss 击破者', '击败 1 个 Boss 难度任务，你的实力已被副本认可。', '👑', 'boss_completed', 1],
-      ['经验收集者', '累计获得 300 XP，经验宝石在你手中不断积累。', '💎', 'xp_total', 300],
-      ['成长冒险家', '角色等级达到 5 级，你已成为真正的成长冒险家。', '🌟', 'level_reached', 5]
+      ['首次启程', '创建人生角色，正式踏入 LifeQuest 副本世界，冒险从此刻开始。', 'rocket', 'character_created', 1],
+      ['目标制定者', '立下第一个长期目标，为勇者指明前行的方向。', 'target', 'goal_created', 1],
+      ['副本挑战者', '完成第一个副本任务，证明你有执行力的勇气。', 'sword', 'task_completed', 1],
+      ['连击达人', '连续 3 天完成任务，连击之光在你身上燃烧。', 'flame', 'streak_days', 3],
+      ['主线推进者', '完成 3 个主线任务，主线剧情因你而向前推进。', 'scroll', 'main_completed', 3],
+      ['Boss 击破者', '击败 1 个 Boss 难度任务，你的实力已被副本认可。', 'crown', 'boss_completed', 1],
+      ['经验收集者', '累计获得 300 XP，经验宝石在你手中不断积累。', 'gem', 'xp_total', 300],
+      ['成长冒险家', '角色等级达到 5 级，你已成为真正的成长冒险家。', 'star', 'level_reached', 5]
     ].forEach((badge) => createBadge.run(...badge));
   }
+
+  normalizeBadgeIcons(database);
 
   const demoGoals = database.prepare('SELECT COUNT(*) AS count FROM goals WHERE userId = ?').get(demoUser.id).count;
   if (demoGoals === 0) {
@@ -163,6 +165,23 @@ function awardInitialBadges(database, userId) {
   for (const badge of badges) {
     insertBadge.run(userId, badge.id);
   }
+}
+
+function normalizeBadgeIcons(database) {
+  database.exec(`
+    UPDATE badges
+    SET icon = CASE conditionType
+      WHEN 'character_created' THEN 'rocket'
+      WHEN 'goal_created' THEN 'target'
+      WHEN 'task_completed' THEN 'sword'
+      WHEN 'streak_days' THEN 'flame'
+      WHEN 'main_completed' THEN 'scroll'
+      WHEN 'boss_completed' THEN 'crown'
+      WHEN 'xp_total' THEN 'gem'
+      WHEN 'level_reached' THEN 'star'
+      ELSE icon
+    END
+  `);
 }
 
 function today() {

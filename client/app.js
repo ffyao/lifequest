@@ -53,8 +53,11 @@ const state = {
   badges: [],
   userBadges: [],
   ranking: [],
-  taskFilter: 'all'
+  taskFilter: 'all',
+  currentView: 'home'
 };
+
+const validViews = new Set(['home', 'auth', 'dashboard', 'goals', 'tasks', 'badges', 'ranking']);
 
 // =============================================
 // DOM Cache
@@ -63,6 +66,8 @@ const elements = {
   demoLoginButton: document.querySelector('#demoLoginButton'),
   heroNpc: document.querySelector('#heroNpc'),
   levelStars: document.querySelector('#levelStars'),
+  views: document.querySelectorAll('[data-view]'),
+  viewLinks: document.querySelectorAll('[data-view-link]'),
 
   loginForm: document.querySelector('#loginForm'),
   registerButton: document.querySelector('#registerButton'),
@@ -129,6 +134,7 @@ elements.registerButton.addEventListener('click', async () => {
     setUser(response.user);
     showToast(`注册成功：${response.user.username}`);
     await refreshAll();
+    navigateTo('dashboard');
   } catch (error) {
     console.error('Registration failed:', error);
   }
@@ -161,10 +167,7 @@ elements.goalForm.addEventListener('submit', async (event) => {
 
     showToast(`已生成 ${response.tasks.length} 个${payload.category || ''}副本任务`);
     await refreshAll();
-
-    setTimeout(() => {
-      document.querySelector('#tasks').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 200);
+    navigateTo('tasks');
   } catch (error) {
     console.error('Task generation failed:', error);
   }
@@ -182,6 +185,10 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     state.taskFilter = btn.dataset.filter;
     renderTasks();
   });
+});
+
+window.addEventListener('hashchange', () => {
+  setActiveView(getViewFromHash());
 });
 
 // =============================================
@@ -203,6 +210,7 @@ async function login() {
     setUser(response.user);
     showToast(`欢迎回来，${response.user.username}`);
     await refreshAll();
+    navigateTo('dashboard');
   } catch (error) {
     console.error('Login failed:', error);
   }
@@ -546,6 +554,36 @@ function showToast(message) {
   }, 2800);
 }
 
+function getViewFromHash() {
+  const view = window.location.hash.replace('#', '').trim();
+  return validViews.has(view) ? view : 'home';
+}
+
+function navigateTo(view) {
+  const targetView = validViews.has(view) ? view : 'home';
+  if (window.location.hash === `#${targetView}`) {
+    setActiveView(targetView);
+    return;
+  }
+  window.location.hash = targetView;
+}
+
+function setActiveView(view) {
+  const targetView = validViews.has(view) ? view : 'home';
+  state.currentView = targetView;
+  document.body.dataset.view = targetView;
+
+  elements.views.forEach(section => {
+    section.classList.toggle('active', section.dataset.view === targetView);
+  });
+
+  elements.viewLinks.forEach(link => {
+    link.classList.toggle('active', link.dataset.viewLink === targetView);
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -577,6 +615,8 @@ function animateValue(element, targetValue) {
 // =============================================
 // Init
 // =============================================
+setActiveView(getViewFromHash());
+
 refreshAll().catch(error => {
   console.error('Initialization failed:', error);
   showToast('初始化失败，请确认后端服务已启动');

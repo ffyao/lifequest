@@ -178,23 +178,31 @@
             <span class="brand-sub">人生副本系统</span>
           </div>
           <div class="nav-links">
-            <a href="#dashboard" class="nav-link">
+            <a href="#home" class="nav-link" data-view-link="home">
+              <svg class="icon icon-xs"><use href="#i-bolt"/></svg>
+              首页
+            </a>
+            <a href="#auth" class="nav-link" data-view-link="auth">
+              <svg class="icon icon-xs"><use href="#i-key"/></svg>
+              账号
+            </a>
+            <a href="#dashboard" class="nav-link" data-view-link="dashboard">
               <svg class="icon icon-xs"><use href="#i-board"/></svg>
               副本看板
             </a>
-            <a href="#goals" class="nav-link">
+            <a href="#goals" class="nav-link" data-view-link="goals">
               <svg class="icon icon-xs"><use href="#i-spark"/></svg>
               目标生成
             </a>
-            <a href="#tasks" class="nav-link">
+            <a href="#tasks" class="nav-link" data-view-link="tasks">
               <svg class="icon icon-xs"><use href="#i-list"/></svg>
               任务列表
             </a>
-            <a href="#badges" class="nav-link">
+            <a href="#badges" class="nav-link" data-view-link="badges">
               <svg class="icon icon-xs"><use href="#i-trophy"/></svg>
               徽章墙
             </a>
-            <a href="#ranking" class="nav-link">
+            <a href="#ranking" class="nav-link" data-view-link="ranking">
               <svg class="icon icon-xs"><use href="#i-ranking"/></svg>
               排行榜
             </a>
@@ -202,7 +210,7 @@
         </nav>
 
         <!-- Hero 主视觉区域 -->
-        <section class="hero-content">
+        <section id="home" class="hero-content view-page active" data-view="home">
           <div class="hero-left">
             <div class="hero-badge">
               <span class="badge-glow"></span>
@@ -260,7 +268,7 @@
             </div>
 
             <div class="hero-actions">
-              <a class="btn-primary btn-glow" href="#goals">
+              <a class="btn-primary btn-glow" href="#goals" data-view-link="goals">
                 <svg class="icon icon-sm"><use href="#i-bolt"/></svg>
                 开启我的副本
                 <span class="btn-shine"></span>
@@ -309,7 +317,7 @@
 
       <main>
         <!-- 登录面板 -->
-        <section class="panel auth-panel glass-panel">
+        <section id="auth" class="panel auth-panel glass-panel view-page" data-view="auth">
           <div class="panel-header">
             <div class="panel-icon">
               <svg class="icon icon-md"><use href="#i-key"/></svg>
@@ -343,7 +351,7 @@
         </section>
 
         <!-- 今日副本看板 -->
-        <section id="dashboard" class="dashboard-section">
+        <section id="dashboard" class="dashboard-section view-page" data-view="dashboard">
           <div class="grid two-columns gap-lg">
             <!-- 角色卡片 -->
             <article class="panel character-panel glass-panel panel-elevated">
@@ -454,7 +462,7 @@
         </section>
 
         <!-- 目标生成 -->
-        <section id="goals" class="panel goal-panel glass-panel">
+        <section id="goals" class="panel goal-panel glass-panel view-page" data-view="goals">
           <div class="panel-header-wide">
             <div class="panel-icon large">
               <svg class="icon icon-lg"><use href="#i-spark"/></svg>
@@ -497,7 +505,7 @@
         </section>
 
         <!-- 任务列表 -->
-        <section id="tasks" class="panel tasks-panel glass-panel">
+        <section id="tasks" class="panel tasks-panel glass-panel view-page" data-view="tasks">
           <div class="panel-header-wide with-action">
             <div>
               <p class="section-label">任务中心</p>
@@ -527,23 +535,22 @@
           <div id="taskList" class="task-grid"></div>
         </section>
 
-        <!-- 徽章墙 & 排行榜 -->
-        <section class="grid two-columns gap-lg">
-          <article id="badges" class="panel badges-panel glass-panel">
-            <div class="panel-header-center">
-              <p class="section-label">成就系统</p>
-              <h2>徽章墙</h2>
-            </div>
-            <div id="badgeList" class="badge-grid"></div>
-          </article>
+        <!-- 徽章墙 -->
+        <section id="badges" class="panel badges-panel glass-panel view-page" data-view="badges">
+          <div class="panel-header-center">
+            <p class="section-label">成就系统</p>
+            <h2>徽章墙</h2>
+          </div>
+          <div id="badgeList" class="badge-grid"></div>
+        </section>
 
-          <article id="ranking" class="panel ranking-panel glass-panel">
-            <div class="panel-header-center">
-              <p class="section-label">竞技场</p>
-              <h2>勇者排行榜</h2>
-            </div>
-            <div id="rankingList" class="ranking-list"></div>
-          </article>
+        <!-- 排行榜 -->
+        <section id="ranking" class="panel ranking-panel glass-panel view-page" data-view="ranking">
+          <div class="panel-header-center">
+            <p class="section-label">竞技场</p>
+            <h2>勇者排行榜</h2>
+          </div>
+          <div id="rankingList" class="ranking-list"></div>
         </section>
       </main>
     </div>
