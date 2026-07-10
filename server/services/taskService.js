@@ -1,3 +1,6 @@
+const GENERATION_COOLDOWN_SECONDS = 10;
+const DAILY_GENERATION_LIMIT = 30;
+
 export function createTaskService(database, gameService, aiService) {
   return {
     list(userId) {
@@ -15,7 +18,19 @@ export function createTaskService(database, gameService, aiService) {
       }));
     },
 
+    getGenerationLimit(userId) {
+      return getGenerationLimit(database, userId);
+    },
+
     async generate(userId, goal) {
+      if (!aiService.getSettings().deepseekKeyConfigured) {
+        const error = new Error('管理员尚未配置 DeepSeek API Key，请联系管理员');
+        error.statusCode = 400;
+        error.code = 'DEEPSEEK_API_KEY_REQUIRED';
+        throw error;
+      }
+
+      const generationLimit = reserveGenerationRequest(database, userId);
       const aiResult = await aiService.generateTasks(userId, goal);
       const insert = database.prepare(`
         INSERT INTO tasks (userId, goalId, title, description, type, difficulty, xpReward, status, dueDate)
@@ -49,6 +64,7 @@ export function createTaskService(database, gameService, aiService) {
           provider: aiResult.provider,
           model: aiResult.model,
           category: aiResult.category,
+          generationLimit,
           tasks
         };
       } catch (error) {
@@ -128,6 +144,86 @@ export function createTaskService(database, gameService, aiService) {
       const result = database.prepare('DELETE FROM tasks WHERE userId = ? AND id = ?').run(userId, taskId);
       return { deleted: result.changes > 0 };
     }
+  };
+}
+
+function reserveGenerationRequest(database, userId) {
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    const generationLimit = getGenerationLimit(database, userId);
+    if (generationLimit.retryAfterSeconds > 0) {
+      const error = new Error(`任务生成太频繁，请 ${generationLimit.retryAfterSeconds} 秒后再试`);
+      error.statusCode = 429;
+      error.code = 'TASK_GENERATION_COOLDOWN';
+      error.retryAfterSeconds = generationLimit.retryAfterSeconds;
+      database.exec('ROLLBACK');
+      throw error;
+    }
+
+    if (generationLimit.dailyRemaining <= 0) {
+      const error = new Error(`今日任务生成次数已达 ${DAILY_GENERATION_LIMIT} 次，请明天再试`);
+      error.statusCode = 429;
+      error.code = 'TASK_GENERATION_DAILY_LIMIT';
+      error.dailyLimit = DAILY_GENERATION_LIMIT;
+      database.exec('ROLLBACK');
+      throw error;
+    }
+
+    database
+      .prepare('INSERT INTO task_generation_requests (userId) VALUES (?)')
+      .run(userId);
+
+    database.exec('COMMIT');
+    return {
+      cooldownSeconds: GENERATION_COOLDOWN_SECONDS,
+      dailyLimit: DAILY_GENERATION_LIMIT,
+      dailyUsed: generationLimit.dailyUsed + 1,
+      dailyRemaining: Math.max(0, generationLimit.dailyRemaining - 1),
+      retryAfterSeconds: GENERATION_COOLDOWN_SECONDS,
+      canGenerate: false
+    };
+  } catch (error) {
+    try {
+      database.exec('ROLLBACK');
+    } catch {
+      // Transaction was already rolled back before throwing a known limit error.
+    }
+    throw error;
+  }
+}
+
+function getGenerationLimit(database, userId) {
+  const lastRequest = database
+    .prepare(`
+      SELECT CAST(strftime('%s', 'now') AS INTEGER) - CAST(strftime('%s', createdAt) AS INTEGER) AS elapsedSeconds
+      FROM task_generation_requests
+      WHERE userId = ?
+      ORDER BY createdAt DESC, id DESC
+      LIMIT 1
+    `)
+    .get(userId);
+  const elapsedSeconds = Number(lastRequest?.elapsedSeconds);
+  const retryAfterSeconds = Number.isFinite(elapsedSeconds) && elapsedSeconds < GENERATION_COOLDOWN_SECONDS
+    ? Math.max(1, GENERATION_COOLDOWN_SECONDS - elapsedSeconds)
+    : 0;
+  const todayCount = database
+    .prepare(`
+      SELECT COUNT(*) AS count
+      FROM task_generation_requests
+      WHERE userId = ?
+        AND date(createdAt, 'localtime') = date('now', 'localtime')
+    `)
+    .get(userId).count;
+  const dailyUsed = Number(todayCount || 0);
+  const dailyRemaining = Math.max(0, DAILY_GENERATION_LIMIT - dailyUsed);
+
+  return {
+    cooldownSeconds: GENERATION_COOLDOWN_SECONDS,
+    dailyLimit: DAILY_GENERATION_LIMIT,
+    dailyUsed,
+    dailyRemaining,
+    retryAfterSeconds,
+    canGenerate: dailyRemaining > 0 && retryAfterSeconds === 0
   };
 }
 

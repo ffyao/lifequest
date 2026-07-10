@@ -233,7 +233,10 @@ elements.goalForm.addEventListener('submit', async (event) => {
     }
 
     await loadAiSettings();
-    showToast(`已生成 ${response.tasks.length} 个${payload.category || ''}副本任务`);
+    const remainingText = response.generationLimit
+      ? `，今日还可生成 ${Number(response.generationLimit.dailyRemaining)} 次`
+      : '';
+    showToast(`已生成 ${response.tasks.length} 个${payload.category || ''}副本任务${remainingText}`);
     await refreshAll();
     navigateTo('tasks');
   } catch (error) {

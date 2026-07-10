@@ -118,6 +118,13 @@ function migrate(database) {
       FOREIGN KEY (taskId) REFERENCES tasks(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS task_generation_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS badges (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
@@ -165,6 +172,7 @@ function migrate(database) {
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_friendships_user_friend ON friendships(userId, friendId);
     CREATE INDEX IF NOT EXISTS idx_characters_ranking ON characters(xp DESC, level DESC, id ASC);
+    CREATE INDEX IF NOT EXISTS idx_task_generation_requests_user_time ON task_generation_requests(userId, createdAt DESC, id DESC);
   `);
   database.exec("UPDATE sessions SET expiresAt = datetime(createdAt, '+7 days') WHERE expiresAt IS NULL");
   database.exec(`

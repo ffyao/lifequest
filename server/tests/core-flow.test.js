@@ -314,6 +314,44 @@ assert.equal(generated.model, 'deepseek-v4-flash');
 assert.ok(generated.tasks.every((task) => task.status === 'todo'));
 assert.equal(generated.tasks.some((task) => task.type === 'side'), false);
 assert.deepEqual(generated.tasks.map((task) => task.xpReward), [45, 18, 28, 130]);
+assert.equal(generated.generationLimit.cooldownSeconds, 10);
+assert.equal(generated.generationLimit.dailyLimit, 30);
+assert.ok(generated.generationLimit.dailyRemaining <= 29);
+assert.equal(deepseekRequestCount, 1);
+const cooldownGoal = context.goalService.create(user.id, {
+  title: '10 秒内重复生成测试',
+  description: '用于验证任务生成接口冷却时间。',
+  category: '学习'
+});
+await assert.rejects(
+  () => context.taskService.generate(user.id, cooldownGoal),
+  (error) => error.code === 'TASK_GENERATION_COOLDOWN' && error.statusCode === 429 && error.retryAfterSeconds > 0
+);
+assert.equal(deepseekRequestCount, 1);
+expireGenerationCooldown(user.id);
+
+const quotaCode = context.userService.createActivationCode(adminLogin.user.id, { type: 'advanced', maxUses: 30 });
+const quotaUser = context.userService.register({
+  username: `quota-${suffix}`,
+  password: 'test1234',
+  activationCode: quotaCode.code
+});
+database
+  .prepare("INSERT INTO task_generation_requests (userId, createdAt) VALUES (?, datetime('now', '-11 seconds'))")
+  .run(quotaUser.user.id);
+const quotaInsert = database.prepare("INSERT INTO task_generation_requests (userId, createdAt) VALUES (?, datetime('now', '-11 seconds'))");
+for (let index = 1; index < 30; index += 1) {
+  quotaInsert.run(quotaUser.user.id);
+}
+const quotaGoal = context.goalService.create(quotaUser.user.id, {
+  title: '每日限额测试目标',
+  description: '用于验证每日三十次任务生成上限。',
+  category: '学习'
+});
+await assert.rejects(
+  () => context.taskService.generate(quotaUser.user.id, quotaGoal),
+  (error) => error.code === 'TASK_GENERATION_DAILY_LIMIT' && error.statusCode === 429 && error.dailyLimit === 30
+);
 assert.equal(deepseekRequestCount, 1);
 
 const secondGoal = context.goalService.create(user.id, {
@@ -325,6 +363,7 @@ const generatedWithSavedKey = await context.taskService.generate(user.id, second
 assert.equal(generatedWithSavedKey.tasks.length, 4);
 assert.equal(deepseekRequestCount, 2);
 assert.deepEqual(deepseekAuthorizations, ['Bearer sk-test-deepseek-key', 'Bearer sk-test-deepseek-key']);
+expireGenerationCooldown(user.id);
 
 const listedGoals = context.goalService.list(user.id);
 assert.equal(listedGoals[0].id, secondGoal.id, '目标列表应按时间倒序返回，最新目标在最上方');
@@ -348,6 +387,7 @@ const generatedShortTerm = await context.taskService.generate(user.id, shortTerm
 assert.equal(generatedShortTerm.tasks.length, 3);
 assert.equal(generatedShortTerm.tasks.some((task) => task.type === 'daily'), false);
 assert.deepEqual(generatedShortTerm.tasks.map((task) => task.xpReward), [40, 25, 120]);
+expireGenerationCooldown(user.id);
 
 const retryGoal = context.goalService.create(user.id, {
   title: '10 天完成 CSS 布局复盘',
@@ -539,6 +579,12 @@ function authRequest(token) {
       authorization: `Bearer ${token}`
     }
   };
+}
+
+function expireGenerationCooldown(userId) {
+  database
+    .prepare("UPDATE task_generation_requests SET createdAt = datetime('now', '-11 seconds') WHERE userId = ?")
+    .run(userId);
 }
 
 async function invokeApi(method, url, token, body) {
