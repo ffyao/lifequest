@@ -115,7 +115,7 @@ function seed(database) {
       INSERT INTO characters (userId, nickname, career, level, xp, coins, streakDays)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    createCharacter.run(demoUser.id, '晨星勇者', '学习者', 2, 160, 30, 2);
+    createCharacter.run(demoUser.id, '主角', '学习者', 2, 160, 30, 2);
     createCharacter.run(aliceUser.id, '代码法师', '创作者', 4, 430, 80, 5);
     createCharacter.run(bobUser.id, '健身骑士', '健身者', 3, 280, 55, 3);
   }
