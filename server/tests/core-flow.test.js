@@ -16,7 +16,7 @@ globalThis.fetch = async (url, options = {}) => {
   assert.equal(body.response_format.type, 'json_object');
   assert.equal(body.thinking.type, 'disabled');
   assert.equal(body.stream, false);
-  assert.ok(body.messages[0].content.includes('tasks 必须返回 3 到 6 个任务'));
+  assert.ok(body.messages[0].content.includes('tasks 必须返回 2 到 10 个任务'));
   assert.ok(body.messages[0].content.includes('短期目标、一次性目标、冲刺型目标允许不生成 daily'));
   assert.ok(body.messages[0].content.includes('side 为可选类型'));
   assert.ok(body.messages[0].content.includes('xpReward 由你根据任务行动成本、难度和目标价值自行决定'));

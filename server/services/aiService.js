@@ -128,7 +128,7 @@ async function requestDeepseekTasks(apiKey, userId, goal, category, options = {}
               '必须只输出合法 JSON，不要输出 Markdown，不要输出额外解释。',
               'JSON 结构必须是 {"npcMessage": string, "tasks": Task[]}。',
               '任务只能由你根据目标现场生成，不得使用固定模板、通用模板或兜底样例。',
-              'tasks 必须返回 3 到 6 个任务。',
+              'tasks 必须返回 2 到 10 个任务。',
               'main 和 boss 为必选类型：至少 1 个 main，至少 1 个 boss。',
               'daily 为可选类型：长期目标、习惯养成目标可生成 1 到 2 个 daily；短期目标、一次性目标、冲刺型目标允许不生成 daily。',
               'side 为可选类型：可返回 0 到 2 个 side，不要为了凑数强行生成支线。',
@@ -224,8 +224,8 @@ function parseDeepseekJson(content) {
 }
 
 function normalizeTasks(tasks) {
-  if (!Array.isArray(tasks) || tasks.length < 3 || tasks.length > 6) {
-    const error = new Error('DeepSeek 必须返回 3 到 6 个副本任务');
+  if (!Array.isArray(tasks) || tasks.length < 2 || tasks.length > 10) {
+    const error = new Error('DeepSeek 必须返回 2 到 10 个副本任务');
     error.statusCode = 502;
     error.code = 'DEEPSEEK_INVALID_TASKS';
     throw error;
