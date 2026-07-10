@@ -29,6 +29,47 @@ http://localhost:3000
 npm test
 ```
 
+## 部署方法
+
+### 本地演示部署
+
+```bash
+git clone git@gitee.com:tidehope/lifequest.git
+cd lifequest
+npm install
+npm run dev
+```
+
+访问：
+
+```text
+http://localhost:3000
+```
+
+### Linux 服务器部署
+
+适用于支持 Node.js `>= 22.5.0` 且具有持久磁盘的服务器：
+
+```bash
+git clone git@gitee.com:tidehope/lifequest.git
+cd lifequest
+npm install
+PORT=3000 npm start
+```
+
+后台运行示例：
+
+```bash
+nohup npm start > lifequest.log 2>&1 &
+```
+
+部署注意事项：
+
+- SQLite 数据库文件位于 `server/data/lifequest.sqlite`，部署环境需要保证该目录可写且持久化。
+- 生产演示建议通过 Nginx 或平台网关反向代理到 Node.js 端口。
+- DeepSeek API Key 由管理员登录后在“系统配置”页保存，不要写入前端代码或提交到仓库。
+- 如果部署平台不支持持久文件系统，建议改用 MySQL、PostgreSQL 或其他外部数据库。
+
 
 ## AI 任务生成
 
