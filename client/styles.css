@@ -1174,6 +1174,21 @@ p { margin: 0; }
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08), 0 4px 16px rgba(255, 255, 255, 0.08);
 }
 
+.input-field:-webkit-autofill,
+.input-field:-webkit-autofill:hover,
+.input-field:-webkit-autofill:focus,
+.textarea-field:-webkit-autofill,
+.textarea-field:-webkit-autofill:hover,
+.textarea-field:-webkit-autofill:focus,
+.input-field:autofill,
+.textarea-field:autofill {
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+  border-color: var(--border-default);
+  box-shadow: 0 0 0 1000px #111 inset;
+  transition: background-color 9999s ease-out, color 9999s ease-out;
+}
+
 .input-field::placeholder, .textarea-field::placeholder {
   color: var(--text-muted);
   opacity: 0.6;
@@ -2112,8 +2127,9 @@ p { margin: 0; }
 .badge-card:not(.locked):hover::before { opacity: 1; }
 
 .badge-card.locked {
-  opacity: 0.28;
-  filter: grayscale(0.85) brightness(0.7);
+  background: rgba(255, 255, 255, 0.018);
+  border-color: rgba(255, 255, 255, 0.10);
+  filter: grayscale(0.35);
 }
 
 .badge-card.unlocked {
@@ -2135,9 +2151,10 @@ p { margin: 0; }
 }
 
 .badge-card.locked .badge-icon {
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.03);
-  border-color: var(--border-default);
+  color: #b8b8b8;
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
+  opacity: 0.76;
 }
 
 .badge-card.unlocked .badge-icon {
@@ -2155,13 +2172,27 @@ p { margin: 0; }
   color: var(--text-primary);
 }
 
+.badge-card.locked strong {
+  color: #d8d8d8;
+}
+
 .badge-desc {
   font-size: 11.5px;
   color: var(--text-muted);
   line-height: 1.45;
 }
 
+.badge-card.locked .badge-desc {
+  color: #a8a8a8;
+}
+
 .badge-card .pill { margin-top: 4px; }
+
+.badge-card.locked .pill {
+  color: #bcbcbc !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
 
 /* =============================================
    Ranking

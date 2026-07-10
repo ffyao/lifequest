@@ -228,7 +228,7 @@
             </h1>
             
             <p class="hero-desc">
-              输入长期目标，AI 生成专属副本任务<br/>
+              输入现实目标，AI 生成专属副本任务<br/>
               完成任务获得经验值，升级角色，解锁成就徽章
             </p>
 
@@ -295,7 +295,7 @@
                 <div class="quest-info">
                   <div class="quest-level">
                     <span class="level-stars" id="levelStars"></span>
-                    <span class="level-text">今日难度</span>
+                    <span class="level-text">副本强度</span>
                   </div>
                   
                   <div class="quest-npc">
@@ -303,7 +303,7 @@
                       <svg class="icon icon-md"><use href="#i-chat"/></svg>
                     </div>
                     <div class="npc-dialog">
-                      <p id="heroNpc">勇者，今天不需要完美通关，只要推进一个任务。</p>
+                      <p id="heroNpc">勇者，不需要一次完美通关，先推进一个任务。</p>
                     </div>
                   </div>
                 </div>
@@ -384,7 +384,7 @@
           </p>
         </section>
 
-        <!-- 今日副本看板 -->
+        <!-- 当前副本看板 -->
         <section id="dashboard" class="dashboard-section view-page" data-view="dashboard">
           <div class="grid two-columns gap-lg">
             <!-- 角色卡片 -->
@@ -450,10 +450,10 @@
               </div>
             </article>
 
-            <!-- 今日副本数据 -->
+            <!-- 当前副本数据 -->
             <article class="panel quest-panel glass-panel">
               <div class="panel-header-center">
-                <p class="section-label">今日副本</p>
+                <p class="section-label">当前副本</p>
                 <h2>任务看板</h2>
               </div>
 
@@ -462,7 +462,7 @@
                   <span class="bubble-icon">
                     <svg class="icon icon-sm"><use href="#i-chat"/></svg>
                   </span>
-                  <p id="npcMessage">等待生成今日副本...</p>
+                  <p id="npcMessage">等待生成当前副本...</p>
                 </div>
               </div>
 
@@ -506,19 +506,19 @@
             </div>
             <div>
               <p class="section-label">AI 任务生成器</p>
-              <h2>输入长期目标，生成专属副本</h2>
+              <h2>输入现实目标，生成专属副本</h2>
             </div>
           </div>
 
-          <form id="goalForm" class="goal-form-modern">
+          <form id="goalForm" class="goal-form-modern" autocomplete="off">
             <div class="form-row">
               <div class="form-group form-grow">
                 <label class="field-label">目标名称</label>
-                <input id="goalTitle" value="30 天掌握 Vue 项目开发" placeholder="例如：30 天掌握 Vue 项目开发" class="input-field input-lg" />
+                <input id="goalTitle" name="lifequestGoalTitle" type="text" value="30 天掌握 Vue 项目开发" placeholder="例如：周末完成作品集首页草稿 / 30 天掌握 Vue 项目开发" autocomplete="off" inputmode="text" class="input-field input-lg" />
               </div>
               <div class="form-group">
                 <label class="field-label">分类</label>
-                <select id="goalCategory" class="select-field">
+                <select id="goalCategory" name="lifequestGoalCategory" autocomplete="off" class="select-field">
                   <option>学习</option>
                   <option>健身</option>
                   <option>阅读</option>
@@ -530,12 +530,12 @@
             
             <div class="form-group">
               <label class="field-label">目标描述（可选）</label>
-              <textarea id="goalDescription" placeholder="补充你的目标背景、期望成果..." class="textarea-field">希望完成基础语法、组件通信、路由和一个完整小项目。</textarea>
+              <textarea id="goalDescription" name="lifequestGoalDescription" placeholder="补充你的目标背景、期望成果..." autocomplete="off" class="textarea-field">希望完成基础语法、组件通信、路由和一个完整小项目。</textarea>
             </div>
 
             <div class="form-group">
               <label class="field-label">DeepSeek API Key</label>
-              <input id="deepseekApiKeyInput" type="password" placeholder="请配置deepseek apikey（前往platform.deepseek.com）" autocomplete="off" class="input-field" />
+              <input id="deepseekApiKeyInput" name="lifequestDeepseekApiKey" type="password" placeholder="请配置deepseek apikey（前往platform.deepseek.com）" autocomplete="new-password" spellcheck="false" autocapitalize="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" class="input-field" />
               <p class="field-help" id="deepseekKeyHint">首次生成副本任务前需要配置，生成成功后后续无需重复输入。</p>
             </div>
 

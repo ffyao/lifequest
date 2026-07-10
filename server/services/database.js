@@ -153,6 +153,11 @@ function migrate(database) {
     UPDATE tasks
     SET status = 'todo', completedAt = NULL
     WHERE type = 'daily' AND status = 'done';
+
+    UPDATE badges
+    SET description = '立下第一个目标，为勇者指明前行的方向。'
+    WHERE name = '目标制定者'
+      AND description = '立下第一个长期目标，为勇者指明前行的方向。';
   `);
 }
 
@@ -197,7 +202,7 @@ function seed(database) {
     `);
     [
       ['首次启程', '创建人生角色，正式踏入 LifeQuest 副本世界，冒险从此刻开始。', 'rocket', 'character_created', 1],
-      ['目标制定者', '立下第一个长期目标，为勇者指明前行的方向。', 'target', 'goal_created', 1],
+      ['目标制定者', '立下第一个目标，为勇者指明前行的方向。', 'target', 'goal_created', 1],
       ['副本挑战者', '完成第一个副本任务，证明你有执行力的勇气。', 'sword', 'task_completed', 1],
       ['连击达人', '连续 3 天完成任务，连击之光在你身上燃烧。', 'flame', 'streak_days', 3],
       ['主线推进者', '完成 3 个主线任务，主线剧情因你而向前推进。', 'scroll', 'main_completed', 3],

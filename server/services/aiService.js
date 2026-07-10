@@ -128,11 +128,14 @@ async function requestDeepseekTasks(apiKey, userId, goal, category, options = {}
               'JSON 结构必须是 {"npcMessage": string, "tasks": Task[]}。',
               '任务只能由你根据目标现场生成，不得使用固定模板、通用模板或兜底样例。',
               'tasks 必须返回 3 到 6 个任务。',
-              'main、daily、boss 为必选类型：至少 1 个 main，至少 1 个 daily，至少 1 个 boss。',
+              'main 和 boss 为必选类型：至少 1 个 main，至少 1 个 boss。',
+              'daily 为可选类型：长期目标、习惯养成目标可生成 1 到 2 个 daily；短期目标、一次性目标、冲刺型目标允许不生成 daily。',
               'side 为可选类型：可返回 0 到 2 个 side，不要为了凑数强行生成支线。',
-              'daily 表示每天可以完成一次的重复任务，标题和描述必须适合每日重复执行。',
+              'daily 表示每天可以完成一次的重复任务，标题和描述必须适合每日重复执行；如果目标不适合每天重复，就不要生成 daily。',
               'main 和 boss 是目标通关进度依据，boss 应体现该目标的最终挑战。',
-              'Task 字段：type 为 main/side/daily/boss；difficulty 为 easy/normal/hard/boss。',
+              'Task 字段：type 为 main/side/daily/boss；difficulty 为 easy/normal/hard/boss；xpReward 为 5 到 220 的整数。',
+              'xpReward 由你根据任务行动成本、难度和目标价值自行决定；daily 的经验通常应低于同等投入的 main/side，建议偏小但不要机械套用固定值。',
+              '经验参考：daily 多数为 10 到 35，main/side 多数为 25 到 90，boss 多数为 80 到 180；参考范围不是硬模板，具体数值要贴合任务。',
               'boss 类型任务的 difficulty 必须为 boss，其余任务不能使用 boss 难度。',
               'title 为 6 到 28 个中文字符；description 为 12 到 80 个中文字符。',
               'title 和 description 必须是自然生成的内容，不得写成“任务内容：任务名称”“任务名称：...”等字段标签格式。',
@@ -239,11 +242,11 @@ function normalizeTasks(tasks) {
       difficulty,
       title,
       description,
-      xpReward: xpByDifficulty(difficulty)
+      xpReward: normalizeXpReward(task.xpReward)
     };
   });
 
-  if (counts.main < 1 || counts.daily < 1 || counts.boss < 1 || counts.side > 2) {
+  if (counts.main < 1 || counts.boss < 1 || counts.side > 2 || counts.daily > 2) {
     const error = new Error('DeepSeek 返回的任务类型组合不符合副本规则');
     error.statusCode = 502;
     error.code = 'DEEPSEEK_INVALID_TASK_TYPES';
@@ -260,6 +263,7 @@ function isRetryableGenerationError(error) {
     'DEEPSEEK_INVALID_TASK_TYPE',
     'DEEPSEEK_INVALID_TASK_DIFFICULTY',
     'DEEPSEEK_TASK_DIFFICULTY_MISMATCH',
+    'DEEPSEEK_INVALID_TASK_XP',
     'DEEPSEEK_INVALID_TASK_TEXT',
     'DEEPSEEK_TEMPLATE_TASK_TEXT'
   ].includes(error?.code);
@@ -319,6 +323,17 @@ function normalizeDifficulty(difficulty, type) {
   return normalizedDifficulty;
 }
 
+function normalizeXpReward(xpReward) {
+  const normalizedXpReward = Number(xpReward);
+  if (!Number.isInteger(normalizedXpReward) || normalizedXpReward < 5 || normalizedXpReward > 220) {
+    const error = new Error('DeepSeek 返回了无效任务经验值');
+    error.statusCode = 502;
+    error.code = 'DEEPSEEK_INVALID_TASK_XP';
+    throw error;
+  }
+  return normalizedXpReward;
+}
+
 function normalizeText(value, name, minLength, maxLength, options = {}) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (text.length < minLength || text.length > maxLength) {
@@ -360,15 +375,6 @@ function validateGeneratedText(text, name, field) {
       throw error;
     }
   }
-}
-
-export function xpByDifficulty(difficulty) {
-  return {
-    easy: 20,
-    normal: 40,
-    hard: 80,
-    boss: 150
-  }[difficulty] || 20;
 }
 
 function pickCategory(goal) {

@@ -625,7 +625,7 @@ function renderDashboard() {
 
   // NPC Message
   const currentNpcText = elements.npcMessage.textContent?.trim();
-  const defaultMessages = ['等待生成今日副本...', '', undefined, null];
+  const defaultMessages = ['等待生成当前副本...', '等待生成今日副本...', '', undefined, null];
 
   if (defaultMessages.includes(currentNpcText)) {
     if (tasks.length > 0) {
@@ -675,12 +675,12 @@ function setNpcMessage(message) {
 
 function getRandomNpcMessage(todo, done) {
   const messages = [
-    `勇者，今天还有 ${todo} 个挑战在等你`,
+    `勇者，还有 ${todo} 个挑战在等你`,
     '每一次微小的完成，都是经验条的跳动',
     '副本在等待你的挑战，从第一个任务开始吧',
     done > 0 ? `已完成 ${done} 个任务，继续保持` : '完成一个主线任务，等级将离提升更近一步',
-    '今天不需要完美通关，只要推进一个任务',
-    todo > 3 ? '今天的副本难度较高，但你有这个实力' : '今天的任务不多，轻松搞定它们'
+    '不需要一次完美通关，先推进一个任务',
+    todo > 3 ? '当前副本强度较高，但你有这个实力' : '当前挑战不多，稳稳推进即可'
   ];
   return messages[Math.floor(Math.random() * messages.length)];
 }
