@@ -61,6 +61,20 @@ export async function handleApiRequest(request, response, context) {
       return;
     }
 
+    if (method === 'PUT' && /^\/api\/goals\/\d+$/.test(pathname)) {
+      const goalId = requireNumber(pathname.split('/').at(-1), 'goalId');
+      const goal = context.goalService.update(getUserId(request), goalId, await readJson(request));
+      sendJson(response, 200, { goal });
+      return;
+    }
+
+    if (method === 'DELETE' && /^\/api\/goals\/\d+$/.test(pathname)) {
+      const goalId = requireNumber(pathname.split('/').at(-1), 'goalId');
+      const result = context.goalService.remove(getUserId(request), goalId);
+      sendJson(response, 200, result);
+      return;
+    }
+
     if (method === 'GET' && pathname === '/api/tasks') {
       const tasks = context.taskService.list(getUserId(request));
       sendJson(response, 200, { tasks });
@@ -76,6 +90,13 @@ export async function handleApiRequest(request, response, context) {
       const result = context.taskService.generate(userId, goal);
       const unlockedBadges = context.badgeService.evaluate(userId);
       sendJson(response, 201, { goal, ...result, unlockedBadges });
+      return;
+    }
+
+    if (method === 'PUT' && /^\/api\/tasks\/\d+$/.test(pathname)) {
+      const taskId = requireNumber(pathname.split('/').at(-1), 'taskId');
+      const task = context.taskService.update(getUserId(request), taskId, await readJson(request));
+      sendJson(response, 200, { task });
       return;
     }
 

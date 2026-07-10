@@ -39,6 +39,34 @@ export function createGoalService(database) {
         throw error;
       }
       return goal;
+    },
+
+    update(userId, goalId, input) {
+      const existing = this.find(userId, goalId);
+
+      if (input.title !== undefined && String(input.title).trim().length < 2) {
+        const error = new Error('目标标题至少需要 2 个字符');
+        error.statusCode = 400;
+        error.code = 'INVALID_GOAL_TITLE';
+        throw error;
+      }
+
+      const title = input.title !== undefined ? String(input.title).trim() : existing.title;
+      const description = input.description !== undefined ? String(input.description).trim() : existing.description;
+      const category = input.category !== undefined ? String(input.category).trim() : existing.category;
+      const status = input.status !== undefined ? String(input.status).trim() : existing.status;
+
+      database
+        .prepare('UPDATE goals SET title = ?, description = ?, category = ?, status = ? WHERE id = ? AND userId = ?')
+        .run(title, description, category, status, goalId, userId);
+
+      return this.find(userId, goalId);
+    },
+
+    remove(userId, goalId) {
+      this.find(userId, goalId);
+      const result = database.prepare('DELETE FROM goals WHERE userId = ? AND id = ?').run(userId, goalId);
+      return { deleted: result.changes > 0 };
     }
   };
 }

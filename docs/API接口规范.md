@@ -128,6 +128,28 @@ PUT /api/character
 GET /api/goals
 ```
 
+### 查询目标详情
+
+```text
+GET /api/goals/:id
+```
+
+响应：
+
+```json
+{
+  "goal": {
+    "id": 1,
+    "userId": 1,
+    "title": "30 天掌握 Vue 项目开发",
+    "description": "完成 Vue 基础、组件通信和一个完整项目。",
+    "category": "学习",
+    "status": "active",
+    "createdAt": "2026-07-09 10:00:00"
+  }
+}
+```
+
 ### 创建目标
 
 ```text
@@ -142,6 +164,78 @@ POST /api/goals
   "description": "完成 Vue 基础、组件通信和一个完整项目。",
   "category": "学习"
 }
+```
+
+### 更新目标
+
+```text
+PUT /api/goals/:id
+```
+
+请求（所有字段均可选，仅传需要更新的字段）：
+
+```json
+{
+  "title": "30 天掌握 Vue 项目开发",
+  "description": "完成基础语法、组件通信和项目实战。",
+  "category": "学习",
+  "status": "active"
+}
+```
+
+要求：
+
+- 只能更新当前用户自己的目标。
+- `title` 不能为空（至少 2 个字符）。
+- `status` 可选值：`active`、`paused`、`done`。
+
+响应：
+
+```json
+{
+  "goal": {
+    "id": 1,
+    "userId": 1,
+    "title": "30 天掌握 Vue 项目开发",
+    "description": "完成基础语法、组件通信和项目实战。",
+    "category": "学习",
+    "status": "active",
+    "createdAt": "2026-07-09 10:00:00"
+  }
+}
+```
+
+错误码：
+
+```text
+400 INVALID_GOAL_TITLE   标题为空或不足 2 个字符
+404 GOAL_NOT_FOUND       目标不存在或不属于当前用户
+```
+
+### 删除目标
+
+```text
+DELETE /api/goals/:id
+```
+
+要求：
+
+- 只能删除当前用户自己的目标。
+- 删除后关联任务的 `goalId` 会被自动设为 `NULL`（数据库外键 `ON DELETE SET NULL`）。
+- 不会影响任务列表接口的正常返回。
+
+响应：
+
+```json
+{
+  "deleted": true
+}
+```
+
+错误码：
+
+```text
+404 GOAL_NOT_FOUND       目标不存在或不属于当前用户
 ```
 
 ## 5. 任务接口
@@ -207,6 +301,78 @@ PATCH /api/tasks/:id/complete
     "xp": 220
   },
   "unlockedBadges": []
+}
+```
+
+### 编辑任务
+
+```text
+PUT /api/tasks/:id
+```
+
+请求（所有字段均可选，仅传需要更新的字段）：
+
+```json
+{
+  "title": "更新后的任务标题",
+  "description": "更新后的任务说明",
+  "difficulty": "normal",
+  "dueDate": "2026-07-10"
+}
+```
+
+要求：
+
+- 只能修改当前用户自己的任务。
+- `title` 不能为空（至少 2 个字符）。
+- `difficulty` 可选值：`easy`、`normal`、`hard`、`boss`。
+- **不允许**通过该接口修改 `xpReward`、`status`、`completedAt`。
+- **不允许**让已完成任务再次获得 XP。
+
+响应：
+
+```json
+{
+  "task": {
+    "id": 2,
+    "userId": 1,
+    "goalId": 1,
+    "title": "更新后的任务标题",
+    "description": "更新后的任务说明",
+    "type": "main",
+    "difficulty": "normal",
+    "xpReward": 40,
+    "status": "todo",
+    "dueDate": "2026-07-10",
+    "completedAt": null,
+    "createdAt": "2026-07-09 10:00:00"
+  }
+}
+```
+
+错误码：
+
+```text
+400 INVALID_TASK_TITLE    标题为空或不足 2 个字符
+400 INVALID_DIFFICULTY    难度值不在允许范围内
+404 TASK_NOT_FOUND        任务不存在或不属于当前用户
+```
+
+### 删除任务
+
+```text
+DELETE /api/tasks/:id
+```
+
+要求：
+
+- 只能删除当前用户自己的任务。
+
+响应：
+
+```json
+{
+  "deleted": true
 }
 ```
 
