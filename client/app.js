@@ -213,7 +213,7 @@ function setUser(user) {
   localStorage.setItem('lifequest:userId', String(user.id));
   elements.authHint.innerHTML = `
     <svg class="icon icon-xs"><use href="#i-check"/></svg>
-    <span>当前用户：<strong>${user.username}</strong>（ID: ${user.id}）</span>
+    <span>当前用户：<strong>${escapeHtml(user.username)}</strong>（ID: ${Number(user.id)}）</span>
   `;
 }
 

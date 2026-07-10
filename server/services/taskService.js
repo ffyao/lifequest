@@ -96,6 +96,14 @@ export function createTaskService(database, gameService, aiService) {
     },
 
     remove(userId, taskId) {
+      const task = database.prepare('SELECT id FROM tasks WHERE userId = ? AND id = ?').get(userId, taskId);
+      if (!task) {
+        const error = new Error('任务不存在');
+        error.statusCode = 404;
+        error.code = 'TASK_NOT_FOUND';
+        throw error;
+      }
+
       const result = database.prepare('DELETE FROM tasks WHERE userId = ? AND id = ?').run(userId, taskId);
       return { deleted: result.changes > 0 };
     }

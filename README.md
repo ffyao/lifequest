@@ -21,6 +21,8 @@ npm run dev
 http://localhost:3000
 ```
 
+注意：本地开发服务是 HTTP，不要使用 `https://localhost:3000`。如果浏览器提示 `SSL_ERROR_RX_RECORD_TOO_LONG`，请确认地址栏是 `http://localhost:3000`。
+
 ## 测试
 
 ```bash

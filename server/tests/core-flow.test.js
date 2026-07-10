@@ -31,6 +31,11 @@ const completed = context.taskService.complete(user.id, generated.tasks[0].id);
 assert.equal(completed.task.status, 'done');
 assert.ok(completed.character.xp > before.xp);
 assert.ok(completed.character.level >= before.level);
+assert.equal(completed.xpGained, generated.tasks[0].xpReward);
+
+const completedAgain = context.taskService.complete(user.id, generated.tasks[0].id);
+assert.equal(completedAgain.xpGained, 0);
+assert.equal(completedAgain.character.xp, completed.character.xp);
 
 const userBadges = context.badgeService.listUserBadges(user.id);
 assert.ok(userBadges.length >= 2);
@@ -121,6 +126,11 @@ const deleteTaskResult = context.taskService.remove(user.id, taskToDelete.id);
 assert.equal(deleteTaskResult.deleted, true);
 const tasksAfterDelete = context.taskService.list(user.id);
 assert.ok(tasksAfterDelete.every((t) => t.id !== taskToDelete.id));
+
+assert.throws(
+  () => context.taskService.remove(user.id, taskToDelete.id),
+  (error) => error.code === 'TASK_NOT_FOUND' && error.statusCode === 404
+);
 
 // 删除目标后，关联任务的 goalId 应被设为 NULL（ON DELETE SET NULL）
 const remainingTaskId = generated.tasks[3].id;

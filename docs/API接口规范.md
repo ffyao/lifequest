@@ -300,9 +300,15 @@ PATCH /api/tasks/:id/complete
     "level": 3,
     "xp": 220
   },
-  "unlockedBadges": []
+  "unlockedBadges": [],
+  "xpGained": 40
 }
 ```
+
+说明：
+
+- 首次完成任务时，`xpGained` 等于该任务的 `xpReward`。
+- 重复完成已通关任务不会再次获得 XP，`xpGained` 返回 `0`。
 
 ### 编辑任务
 
@@ -374,6 +380,12 @@ DELETE /api/tasks/:id
 {
   "deleted": true
 }
+```
+
+错误码：
+
+```text
+404 TASK_NOT_FOUND        任务不存在或不属于当前用户
 ```
 
 ## 6. 徽章接口

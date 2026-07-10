@@ -12,6 +12,7 @@ const port = Number(process.env.PORT || 3000);
 
 const database = initializeDatabase();
 const context = createAppContext(database);
+const accessUrl = `http://localhost:${port}`;
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -66,6 +67,20 @@ const server = createServer(async (request, response) => {
   }
 });
 
+server.on('clientError', (error, socket) => {
+  const isTlsHandshake = error.rawPacket?.[0] === 22;
+  if (isTlsHandshake) {
+    console.warn(`检测到 HTTPS/SSL 访问，但当前开发服务只支持 HTTP。请访问 ${accessUrl}`);
+  }
+
+  if (socket.writable) {
+    socket.end(
+      `HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nLifeQuest dev server only supports HTTP. Use ${accessUrl}\n`
+    );
+  }
+});
+
 server.listen(port, () => {
-  console.log(`LifeQuest server running at http://localhost:${port}`);
+  console.log(`LifeQuest server running at ${accessUrl}`);
+  console.log(`请使用 ${accessUrl} 访问，不要使用 https://localhost:${port}`);
 });

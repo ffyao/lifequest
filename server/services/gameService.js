@@ -49,7 +49,8 @@ export function createGameService(database, badgeService) {
         return {
           task,
           character: this.getCharacter(userId),
-          unlockedBadges: []
+          unlockedBadges: [],
+          xpGained: 0
         };
       }
 
@@ -71,7 +72,8 @@ export function createGameService(database, badgeService) {
       return {
         task: updatedTask,
         character: this.getCharacter(userId),
-        unlockedBadges
+        unlockedBadges,
+        xpGained: task.xpReward
       };
     },
 
