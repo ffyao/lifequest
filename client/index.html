@@ -7,144 +7,558 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <!-- SVG 图标符号库（全局复用） -->
+    <svg class="icon-lib" aria-hidden="true">
+      <defs>
+        <!-- 剑 - 主线任务 -->
+        <symbol id="i-sword" viewBox="0 0 24 24">
+          <path d="M14.5 17.5 4 7V4h3l10.5 10.5M13 19l6-6m-3-3 5-5-2-2-5 5M8 13l-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 指南针 - 支线任务 -->
+        <symbol id="i-compass" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="m15.5 8.5-2 5-5 2 2-5 5-2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 日历 - 每日任务 -->
+        <symbol id="i-calendar" viewBox="0 0 24 24">
+          <rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M3 9h18M8 3v4m8-4v4M8 13h2m4 0h2M8 17h2m4 0h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </symbol>
+        <!-- 皇冠 - Boss任务 -->
+        <symbol id="i-crown" viewBox="0 0 24 24">
+          <path d="M3 7l4 5 5-7 5 7 4-5v11H3V7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M3 18h18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="7" cy="12" r="1" fill="currentColor"/>
+          <circle cx="17" cy="12" r="1" fill="currentColor"/>
+        </symbol>
+        <!-- 盾牌 - 角色 -->
+        <symbol id="i-shield" viewBox="0 0 24 24">
+          <path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 对话框 - NPC -->
+        <symbol id="i-chat" viewBox="0 0 24 24">
+          <path d="M21 12a8 8 0 0 1-8 8H8l-5 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M8 11h.01M12 11h.01M16 11h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </symbol>
+        <!-- 硬币 - 金币 -->
+        <symbol id="i-coin" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M12 9.5v5M10.5 12h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </symbol>
+        <!-- 火焰 - 连击 -->
+        <symbol id="i-flame" viewBox="0 0 24 24">
+          <path d="M12 2c1 3 4 5 4 9a4 4 0 0 1-8 0c0-1 .5-2 1-3 .5 1 1 1.5 1.5 1.5C9 6 11 4 12 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 奖杯 - 徽章 -->
+        <symbol id="i-trophy" viewBox="0 0 24 24">
+          <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3M10 14v3m4-3v3M8 20h8M9 17h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </symbol>
+        <!-- 排行/阶梯 - 排行榜 -->
+        <symbol id="i-ranking" viewBox="0 0 24 24">
+          <path d="M4 20V10m0 0 4-2m-4 2 4 2m0-4v12M12 20V6m0 0 4-2m-4 2 4 2m0-4v16M20 20v-8m0 0-4-2m4 2-4 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 密钥图案 - 身份验证 -->
+        <symbol id="i-key" viewBox="0 0 24 24">
+          <path d="M12 2L3 7v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <rect x="9.5" y="10" width="5" height="4.5" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="12" cy="7.5" r="1.5" fill="currentColor"/>
+          <path d="M12 9v1M10 14.5h4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </symbol>
+        <!-- 星辰/魔法 - 目标生成 -->
+        <symbol id="i-spark" viewBox="0 0 24 24">
+          <path d="M12 3v4M12 17v4M3 12h4m10 0h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        </symbol>
+        <!-- 刷新循环 -->
+        <symbol id="i-refresh" viewBox="0 0 24 24">
+          <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 对勾 - 完成 -->
+        <symbol id="i-check" viewBox="0 0 24 24">
+          <path d="m5 12 5 5 9-11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 闪电 - 开启/能量 -->
+        <symbol id="i-bolt" viewBox="0 0 24 24">
+          <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 铃铛 - 提示 -->
+        <symbol id="i-bell" viewBox="0 0 24 24">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9zM9 19a3 3 0 0 0 6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 游戏手柄 -->
+        <symbol id="i-gamepad" viewBox="0 0 24 24">
+          <path d="M7 8h10a5 5 0 0 1 5 5v1a3 3 0 0 1-5 2l-2-2H9l-2 2a3 3 0 0 1-5-2v-1a5 5 0 0 1 5-5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M8 11v3M6.5 12.5h3M15 11h.01M17 13h.01" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </symbol>
+        <!-- 箭头右 -->
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+          <path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 锁 - 未解锁 -->
+        <symbol id="i-lock" viewBox="0 0 24 24">
+          <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+        </symbol>
+        <!-- 勋章 - 徽章锁定态 -->
+        <symbol id="i-medal" viewBox="0 0 24 24">
+          <circle cx="12" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="m9 14-2 7 5-3 5 3-2-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M12 6v3l2 1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </symbol>
+        <!-- 图表/看板 -->
+        <symbol id="i-board" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M7 14v3m5-6v6m5-9v9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </symbol>
+        <!-- 灯泡 - 提示 -->
+        <symbol id="i-bulb" viewBox="0 0 24 24">
+          <path d="M9 18h6M10 21h4M12 2a7 7 0 0 0-4 12c1 1 1 2 1 3h6c0-1 0-2 1-3a7 7 0 0 0-4-12z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+        </symbol>
+        <!-- 列表 -->
+        <symbol id="i-list" viewBox="0 0 24 24">
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </symbol>
+        <!-- 地图/路径 -->
+        <symbol id="i-map" viewBox="0 0 24 24">
+          <path d="m9 4-6 2v14l6-2 6 2 6-2V4l-6 2-6-2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M9 4v14M15 6v14" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        </symbol>
+        <!-- 火箭 - 首次启程徽章 -->
+        <symbol id="i-rocket" viewBox="0 0 24 24">
+          <path d="M12 2c3 2 5 5 5 9l-2 2v3l-3 2-3-2v-3l-2-2c0-4 2-7 5-9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <circle cx="12" cy="9" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M7 15c-2 0-3 2-3 4 2 0 4-1 4-3M17 15c2 0 3 2 3 4-2 0-4-1-4-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 靶心 - 目标制定者徽章 -->
+        <symbol id="i-target" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="12" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="12" cy="12" r="2" fill="currentColor"/>
+          <path d="M12 1v3M12 20v3M1 12h3M20 12h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </symbol>
+        <!-- 卷轴 - 主线推进者徽章 -->
+        <symbol id="i-scroll" viewBox="0 0 24 24">
+          <path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M4 3a2 2 0 0 0 0 4M6 19a2 2 0 0 1-2 2M9 8h6M9 12h6M9 16h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </symbol>
+        <!-- 宝石 - 经验收集者徽章 -->
+        <symbol id="i-gem" viewBox="0 0 24 24">
+          <path d="M6 3h12l4 6-10 12L2 9l4-6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M2 9h20M9 3l-3 6 6 12 6-12-3-6M9 9l3 12 3-12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 星星 - 成长冒险家徽章 -->
+        <symbol id="i-star" viewBox="0 0 24 24">
+          <path d="M12 2l3 7 7 .5-5.5 4.5 2 7L12 17l-6.5 4 2-7L2 9.5 9 9l3-7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </symbol>
+        <!-- 剪影头像 - 主角 -->
+        <symbol id="i-silhouette" viewBox="0 0 24 24">
+          <path d="M12 4c2.2 0 4 1.8 4 4s-1.8 4-4 4-4-1.8-4-4 1.8-4 4-4z" fill="currentColor"/>
+          <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="currentColor"/>
+        </symbol>
+      </defs>
+    </svg>
+
+    <!-- 背景粒子层 -->
+    <div class="bg-particles"></div>
+    <div class="bg-grid"></div>
+
     <div class="app-shell">
+      <!-- 顶部导航栏 -->
       <header class="hero">
         <nav class="topbar">
           <div class="brand">
-            <span class="brand-mark">LQ</span>
-            <span>LifeQuest 人生副本</span>
+            <span class="brand-mark">
+              <svg class="icon icon-sm"><use href="#i-bolt"/></svg>
+            </span>
+            <span class="brand-text">LifeQuest</span>
+            <span class="brand-sub">人生副本系统</span>
           </div>
           <div class="nav-links">
-            <a href="#dashboard">副本看板</a>
-            <a href="#goals">目标生成</a>
-            <a href="#tasks">任务列表</a>
-            <a href="#badges">徽章墙</a>
-            <a href="#ranking">排行榜</a>
+            <a href="#dashboard" class="nav-link">
+              <svg class="icon icon-xs"><use href="#i-board"/></svg>
+              副本看板
+            </a>
+            <a href="#goals" class="nav-link">
+              <svg class="icon icon-xs"><use href="#i-spark"/></svg>
+              目标生成
+            </a>
+            <a href="#tasks" class="nav-link">
+              <svg class="icon icon-xs"><use href="#i-list"/></svg>
+              任务列表
+            </a>
+            <a href="#badges" class="nav-link">
+              <svg class="icon icon-xs"><use href="#i-trophy"/></svg>
+              徽章墙
+            </a>
+            <a href="#ranking" class="nav-link">
+              <svg class="icon icon-xs"><use href="#i-ranking"/></svg>
+              排行榜
+            </a>
           </div>
         </nav>
+
+        <!-- Hero 主视觉区域 -->
         <section class="hero-content">
-          <div>
-            <p class="eyebrow">AI Coding 小组项目 · 游戏化目标管理</p>
-            <h1>把现实目标，变成可挑战的人生副本</h1>
-            <p class="hero-copy">
-              输入长期目标，系统生成主线、支线和每日任务。完成任务即可获得 XP、升级角色、解锁徽章。
+          <div class="hero-left">
+            <div class="hero-badge">
+              <span class="badge-glow"></span>
+              AI Coding 小组项目 · 游戏化目标管理
+            </div>
+            
+            <h1 class="hero-title">
+              <span class="title-line">把现实目标</span>
+              <span class="title-highlight">变成可挑战的</span>
+              <span class="title-accent">人生副本</span>
+            </h1>
+            
+            <p class="hero-desc">
+              输入长期目标，AI 生成专属副本任务<br/>
+              完成任务获得经验值，升级角色，解锁成就徽章
             </p>
+
+            <div class="feature-showcase">
+              <div class="feature-item">
+                <div class="feature-icon type-main">
+                  <svg class="icon icon-md"><use href="#i-sword"/></svg>
+                </div>
+                <div class="feature-text">
+                  <strong>主线 / 支线任务</strong>
+                  <span>多维度目标拆解</span>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon type-side">
+                  <svg class="icon icon-md"><use href="#i-ranking"/></svg>
+                </div>
+                <div class="feature-text">
+                  <strong>XP 等级系统</strong>
+                  <span>成长可见可量化</span>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon type-daily">
+                  <svg class="icon icon-md"><use href="#i-trophy"/></svg>
+                </div>
+                <div class="feature-text">
+                  <strong>成就徽章</strong>
+                  <span>解锁荣耀时刻</span>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon type-boss">
+                  <svg class="icon icon-md"><use href="#i-crown"/></svg>
+                </div>
+                <div class="feature-text">
+                  <strong>实时排行榜</strong>
+                  <span>与勇者同台竞技</span>
+                </div>
+              </div>
+            </div>
+
             <div class="hero-actions">
-              <a class="primary-button" href="#goals">开启副本</a>
-              <button class="ghost-button" id="demoLoginButton">使用 Demo 账号</button>
+              <a class="btn-primary btn-glow" href="#goals">
+                <svg class="icon icon-sm"><use href="#i-bolt"/></svg>
+                开启我的副本
+                <span class="btn-shine"></span>
+              </a>
+              <button class="btn-secondary" id="demoLoginButton">
+                <svg class="icon icon-sm"><use href="#i-gamepad"/></svg>
+                使用 Demo 账号
+              </button>
             </div>
           </div>
-          <div class="hero-card">
-            <div class="planet"></div>
-            <h2>今日副本难度：★★★</h2>
-            <p id="heroNpc">勇者，今天不需要完美通关，只要推进一个任务。</p>
+
+          <div class="hero-right">
+            <div class="hero-card-3d">
+              <div class="card-frame"></div>
+              <div class="card-content">
+                <div class="quest-orb">
+                  <div class="orb-core"></div>
+                  <div class="orb-ring ring-1"></div>
+                  <div class="orb-ring ring-2"></div>
+                  <div class="orb-particles"></div>
+                  <div class="orb-runes"></div>
+                </div>
+                
+                <div class="quest-info">
+                  <div class="quest-level">
+                    <span class="level-stars" id="levelStars"></span>
+                    <span class="level-text">今日难度</span>
+                  </div>
+                  
+                  <div class="quest-npc">
+                    <div class="npc-avatar">
+                      <svg class="icon icon-md"><use href="#i-chat"/></svg>
+                    </div>
+                    <div class="npc-dialog">
+                      <p id="heroNpc">勇者，今天不需要完美通关，只要推进一个任务。</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="card-glow"></div>
+            </div>
           </div>
         </section>
       </header>
 
       <main>
-        <section class="panel auth-panel">
-          <div>
-            <p class="section-label">登录 / 注册</p>
-            <h2>进入你的专属存档</h2>
-          </div>
-          <form id="loginForm" class="inline-form">
-            <input id="usernameInput" value="demo" placeholder="用户名" autocomplete="username" />
-            <input id="passwordInput" value="demo123" type="password" placeholder="密码" autocomplete="current-password" />
-            <button type="submit">登录</button>
-            <button type="button" id="registerButton">注册</button>
-          </form>
-          <p class="hint" id="authHint">默认账号：demo / demo123</p>
-        </section>
-
-        <section id="dashboard" class="grid two-columns">
-          <article class="panel character-card">
-            <p class="section-label">角色面板</p>
-            <h2 id="characterName">读取中...</h2>
-            <p id="characterCareer" class="tag">学习者</p>
-            <div class="level-row">
-              <span id="characterLevel">Lv.1</span>
-              <span id="characterXp">0 XP</span>
+        <!-- 登录面板 -->
+        <section class="panel auth-panel glass-panel">
+          <div class="panel-header">
+            <div class="panel-icon">
+              <svg class="icon icon-md"><use href="#i-key"/></svg>
             </div>
-            <div class="xp-bar">
-              <div id="xpBar" class="xp-bar-fill"></div>
-            </div>
-            <div class="stats">
-              <span id="characterCoins">金币 0</span>
-              <span id="characterStreak">连击 0 天</span>
-            </div>
-          </article>
-
-          <article class="panel">
-            <p class="section-label">核心闭环</p>
-            <h2>今日副本看板</h2>
-            <p id="npcMessage" class="npc-message">等待生成今日副本...</p>
-            <div class="progress-grid">
-              <div>
-                <strong id="todoCount">0</strong>
-                <span>未完成</span>
-              </div>
-              <div>
-                <strong id="doneCount">0</strong>
-                <span>已完成</span>
-              </div>
-              <div>
-                <strong id="badgeCount">0</strong>
-                <span>已解锁徽章</span>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section id="goals" class="panel">
-          <div class="section-head">
             <div>
-              <p class="section-label">AI / 模板任务生成</p>
-              <h2>输入长期目标，生成副本任务</h2>
+              <p class="section-label">身份验证</p>
+              <h2>进入你的专属存档</h2>
             </div>
           </div>
-          <form id="goalForm" class="goal-form">
-            <input id="goalTitle" value="30 天掌握 Vue 项目开发" placeholder="例如：30 天掌握 Vue 项目开发" />
-            <select id="goalCategory">
-              <option>学习</option>
-              <option>健身</option>
-              <option>阅读</option>
-              <option>创作</option>
-              <option>生活</option>
-            </select>
-            <textarea id="goalDescription" placeholder="补充目标背景">希望完成基础语法、组件通信、路由和一个完整小项目。</textarea>
-            <button type="submit">生成副本任务</button>
+          
+          <form id="loginForm" class="auth-form">
+            <div class="input-group">
+              <input id="usernameInput" value="demo" placeholder="输入用户名" autocomplete="username" class="input-field" />
+              <input id="passwordInput" value="demo123" type="password" placeholder="输入密码" autocomplete="current-password" class="input-field" />
+            </div>
+            <div class="btn-group">
+              <button type="submit" class="btn-primary btn-sm">
+                <svg class="icon icon-xs"><use href="#i-arrow"/></svg>
+                登录
+              </button>
+              <button type="button" id="registerButton" class="btn-secondary btn-sm">
+                注册账号
+              </button>
+            </div>
+          </form>
+          
+          <p class="auth-hint" id="authHint">
+            <svg class="icon icon-xs"><use href="#i-bulb"/></svg>
+            <span>默认账号：demo / demo123</span>
+          </p>
+        </section>
+
+        <!-- 今日副本看板 -->
+        <section id="dashboard" class="dashboard-section">
+          <div class="grid two-columns gap-lg">
+            <!-- 角色卡片 -->
+            <article class="panel character-panel glass-panel panel-elevated">
+              <div class="panel-decor decor-left"></div>
+              
+              <div class="char-header">
+                <div class="char-avatar">
+                  <div class="avatar-ring"></div>
+                  <div class="avatar-img">
+                    <svg class="icon icon-lg silhouette-icon"><use href="#i-silhouette"/></svg>
+                  </div>
+                  <div class="avatar-level" id="characterLevel">Lv.1</div>
+                </div>
+                <div class="char-info">
+                  <h2 id="characterName">读取中...</h2>
+                  <span class="char-tag" id="characterCareer">学习者</span>
+                </div>
+              </div>
+
+              <div class="xp-container">
+                <div class="xp-header">
+                  <span class="xp-label">经验值</span>
+                  <span class="xp-value" id="characterXp">0 XP</span>
+                </div>
+                <div class="xp-bar-wrapper">
+                  <div class="xp-bar-track">
+                    <div class="xp-bar-fill" id="xpBar">
+                      <div class="xp-bar-glow"></div>
+                      <div class="xp-bar-shine"></div>
+                    </div>
+                  </div>
+                  <div class="xp-milestones">
+                    <span></span><span></span><span></span><span></span>
+                  </div>
+                </div>
+                <div class="xp-next">距离下一等级还需 <span id="xpToNext">100</span> XP</div>
+              </div>
+
+              <div class="char-stats">
+                <div class="stat-item">
+                  <div class="stat-icon stat-coin">
+                    <svg class="icon icon-sm"><use href="#i-coin"/></svg>
+                  </div>
+                  <div class="stat-content">
+                    <strong id="characterCoins">0</strong>
+                    <span>金币</span>
+                  </div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                  <div class="stat-icon stat-streak">
+                    <svg class="icon icon-sm"><use href="#i-flame"/></svg>
+                  </div>
+                  <div class="stat-content">
+                    <strong id="characterStreak">0</strong>
+                    <span>连击天数</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- 今日副本数据 -->
+            <article class="panel quest-panel glass-panel">
+              <div class="panel-header-center">
+                <p class="section-label">今日副本</p>
+                <h2>任务看板</h2>
+              </div>
+
+              <div class="npc-message-box">
+                <div class="npc-bubble">
+                  <span class="bubble-icon">
+                    <svg class="icon icon-sm"><use href="#i-chat"/></svg>
+                  </span>
+                  <p id="npcMessage">等待生成今日副本...</p>
+                </div>
+              </div>
+
+              <div class="dashboard-metrics">
+                <div class="metric-card metric-todo">
+                  <div class="metric-icon">
+                    <svg class="icon icon-md"><use href="#i-list"/></svg>
+                  </div>
+                  <div class="metric-value" id="todoCount">0</div>
+                  <div class="metric-label">未完成</div>
+                  <div class="metric-bar"><div class="metric-bar-fill"></div></div>
+                </div>
+
+                <div class="metric-card metric-done">
+                  <div class="metric-icon">
+                    <svg class="icon icon-md"><use href="#i-check"/></svg>
+                  </div>
+                  <div class="metric-value" id="doneCount">0</div>
+                  <div class="metric-label">已完成</div>
+                  <div class="metric-bar"><div class="metric-bar-fill"></div></div>
+                </div>
+
+                <div class="metric-card metric-badge">
+                  <div class="metric-icon">
+                    <svg class="icon icon-md"><use href="#i-medal"/></svg>
+                  </div>
+                  <div class="metric-value" id="badgeCount">0</div>
+                  <div class="metric-label">已解锁徽章</div>
+                  <div class="metric-bar"><div class="metric-bar-fill"></div></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- 目标生成 -->
+        <section id="goals" class="panel goal-panel glass-panel">
+          <div class="panel-header-wide">
+            <div class="panel-icon large">
+              <svg class="icon icon-lg"><use href="#i-spark"/></svg>
+            </div>
+            <div>
+              <p class="section-label">AI 任务生成器</p>
+              <h2>输入长期目标，生成专属副本</h2>
+            </div>
+          </div>
+
+          <form id="goalForm" class="goal-form-modern">
+            <div class="form-row">
+              <div class="form-group form-grow">
+                <label class="field-label">目标名称</label>
+                <input id="goalTitle" value="30 天掌握 Vue 项目开发" placeholder="例如：30 天掌握 Vue 项目开发" class="input-field input-lg" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">分类</label>
+                <select id="goalCategory" class="select-field">
+                  <option>学习</option>
+                  <option>健身</option>
+                  <option>阅读</option>
+                  <option>创作</option>
+                  <option>生活</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="field-label">目标描述（可选）</label>
+              <textarea id="goalDescription" placeholder="补充你的目标背景、期望成果..." class="textarea-field">希望完成基础语法、组件通信、路由和一个完整小项目。</textarea>
+            </div>
+
+            <button type="submit" class="btn-primary btn-lg btn-block">
+              <svg class="icon icon-sm"><use href="#i-spark"/></svg>
+              生成副本任务
+              <span class="btn-shine"></span>
+            </button>
           </form>
         </section>
 
-        <section id="tasks" class="panel">
-          <div class="section-head">
+        <!-- 任务列表 -->
+        <section id="tasks" class="panel tasks-panel glass-panel">
+          <div class="panel-header-wide with-action">
             <div>
-              <p class="section-label">任务列表</p>
-              <h2>主线、支线、每日与 Boss 任务</h2>
+              <p class="section-label">任务中心</p>
+              <h2>主线 · 支线 · 每日 · Boss</h2>
             </div>
-            <button id="refreshButton" class="ghost-button compact">刷新数据</button>
+            <button id="refreshButton" class="btn-icon-only" title="刷新任务">
+              <svg class="icon icon-sm"><use href="#i-refresh"/></svg>
+            </button>
           </div>
-          <div id="taskList" class="task-list"></div>
+
+          <div class="task-filters">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn filter-main" data-filter="main">
+              <svg class="icon icon-xs"><use href="#i-sword"/></svg> 主线
+            </button>
+            <button class="filter-btn filter-side" data-filter="side">
+              <svg class="icon icon-xs"><use href="#i-compass"/></svg> 支线
+            </button>
+            <button class="filter-btn filter-daily" data-filter="daily">
+              <svg class="icon icon-xs"><use href="#i-calendar"/></svg> 每日
+            </button>
+            <button class="filter-btn filter-boss" data-filter="boss">
+              <svg class="icon icon-xs"><use href="#i-crown"/></svg> Boss
+            </button>
+          </div>
+
+          <div id="taskList" class="task-grid"></div>
         </section>
 
-        <section class="grid two-columns">
-          <article id="badges" class="panel">
-            <p class="section-label">徽章墙</p>
-            <h2>成就解锁</h2>
-            <div id="badgeList" class="badge-list"></div>
+        <!-- 徽章墙 & 排行榜 -->
+        <section class="grid two-columns gap-lg">
+          <article id="badges" class="panel badges-panel glass-panel">
+            <div class="panel-header-center">
+              <p class="section-label">成就系统</p>
+              <h2>徽章墙</h2>
+            </div>
+            <div id="badgeList" class="badge-grid"></div>
           </article>
 
-          <article id="ranking" class="panel">
-            <p class="section-label">排行榜</p>
-            <h2>小组经验榜</h2>
+          <article id="ranking" class="panel ranking-panel glass-panel">
+            <div class="panel-header-center">
+              <p class="section-label">竞技场</p>
+              <h2>勇者排行榜</h2>
+            </div>
             <div id="rankingList" class="ranking-list"></div>
           </article>
         </section>
       </main>
     </div>
 
-    <div id="toast" class="toast"></div>
+    <!-- Toast 提示 -->
+    <div id="toast" class="toast-container">
+      <div class="toast-content">
+        <span class="toast-icon">
+          <svg class="icon icon-sm"><use href="#i-bell"/></svg>
+        </span>
+        <span class="toast-message"></span>
+      </div>
+      <div class="toast-progress"></div>
+    </div>
+
     <script type="module" src="/app.js"></script>
   </body>
 </html>
