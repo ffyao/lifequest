@@ -240,6 +240,8 @@ PUT /api/ai/settings/deepseek-key
 GET /api/goals
 ```
 
+说明：目标按创建时间倒序返回，最新目标在最上方。前端会基于该列表恢复或选择当前目标。
+
 ### 查询目标详情
 
 ```text
@@ -334,7 +336,7 @@ DELETE /api/goals/:id
 
 - 只能删除当前用户自己的目标。
 - 删除后关联任务的 `goalId` 会被自动设为 `NULL`（数据库外键 `ON DELETE SET NULL`）。
-- 不会影响任务列表接口的正常返回。
+- 不会影响任务接口的正常返回；关联任务会变为未归属目标，前端目标任务中心不再展示这些任务。
 
 响应：
 
@@ -358,6 +360,8 @@ DELETE /api/goals/:id
 GET /api/tasks
 ```
 
+说明：接口返回当前用户所有任务。前端会按当前选中的 `goalId` 过滤任务，形成目标任务中心。
+
 ### 生成任务
 
 ```text
@@ -375,7 +379,7 @@ POST /api/tasks/generate
 }
 ```
 
-说明：任务生成使用 DeepSeek `deepseek-v4-flash` 模型调用 `POST /chat/completions`。生成结果必须包含 5 个副本任务：1 个主线、1 个支线、2 个每日、1 个 Boss。后端会校验任务类型、难度、标题和描述后再写入数据库。
+说明：任务生成使用 DeepSeek `deepseek-v4-flash` 模型调用 `POST /chat/completions`。任务只能由 AI 生成，后端不使用本地模板兜底。生成结果必须包含 3 到 6 个副本任务，且至少包含 1 个主线、1 个每日和 1 个 Boss；支线任务可选。后端会校验任务数量、类型、难度、标题和描述后再写入数据库。
 
 响应：
 
@@ -410,6 +414,11 @@ PATCH /api/tasks/:id/complete
 {
   "task": {
     "id": 1,
+    "status": "done",
+    "completedToday": false
+  },
+  "goal": {
+    "id": 1,
     "status": "done"
   },
   "character": {
@@ -424,7 +433,10 @@ PATCH /api/tasks/:id/complete
 说明：
 
 - 首次完成任务时，`xpGained` 等于该任务的 `xpReward`。
-- 重复完成已通关任务不会再次获得 XP，`xpGained` 返回 `0`。
+- 主线、支线和 Boss 任务完成后不会再次获得 XP，`xpGained` 返回 `0`。
+- 每日任务每天可以完成一次；当天重复提交返回 `xpGained: 0`，任务仍保持 `todo`，并通过 `completedToday: true` 表示今日已完成。
+- 目标通关进度只取决于主线和 Boss；当同一目标下所有主线和 Boss 都完成后，`goal.status` 更新为 `done`。
+- 目标通关后，该目标下任意任务再次提交都不会获得 XP，前端完成按钮统一显示“已通关”。
 
 ### 编辑任务
 

@@ -42,7 +42,7 @@ function isBadgeUnlocked(database, userId, badge) {
     case 'goal_created':
       return count(database, 'goals', 'userId = ?', [userId]) >= badge.conditionValue;
     case 'task_completed':
-      return count(database, 'tasks', 'userId = ? AND status = ?', [userId, 'done']) >= badge.conditionValue;
+      return countTaskCompletions(database, userId) >= badge.conditionValue;
     case 'streak_days': {
       const character = database.prepare('SELECT streakDays FROM characters WHERE userId = ?').get(userId);
       return Number(character?.streakDays || 0) >= badge.conditionValue;
@@ -66,4 +66,10 @@ function isBadgeUnlocked(database, userId, badge) {
 
 function count(database, tableName, whereClause, params) {
   return database.prepare(`SELECT COUNT(*) AS count FROM ${tableName} WHERE ${whereClause}`).get(...params).count;
+}
+
+function countTaskCompletions(database, userId) {
+  const doneTasks = count(database, 'tasks', 'userId = ? AND status = ?', [userId, 'done']);
+  const dailyCompletions = count(database, 'task_daily_completions', 'userId = ?', [userId]);
+  return doneTasks + dailyCompletions;
 }

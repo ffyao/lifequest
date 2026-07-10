@@ -13,6 +13,8 @@ globalThis.fetch = async (url, options = {}) => {
   assert.equal(body.response_format.type, 'json_object');
   assert.equal(body.thinking.type, 'disabled');
   assert.equal(body.stream, false);
+  assert.ok(body.messages[0].content.includes('tasks 必须返回 3 到 6 个任务'));
+  assert.ok(body.messages[0].content.includes('side 为可选类型'));
   assert.equal(options.headers.Authorization, 'Bearer sk-test-deepseek-key');
   deepseekAuthorizations.push(options.headers.Authorization);
 
@@ -28,7 +30,6 @@ globalThis.fetch = async (url, options = {}) => {
                 npcMessage: 'DeepSeek 已为你开启本次人生副本。',
                 tasks: [
                   { type: 'main', difficulty: 'normal', title: '拆解学习路线', description: '列出本次复习的知识模块和每日推进顺序。' },
-                  { type: 'side', difficulty: 'easy', title: '整理参考资料', description: '收集三份高质量资料并标注使用场景。' },
                   { type: 'daily', difficulty: 'easy', title: '完成专注学习', description: '完成一次二十五分钟无打断学习并记录结果。' },
                   { type: 'daily', difficulty: 'normal', title: '输出学习笔记', description: '用自己的语言总结今天最关键的三个知识点。' },
                   { type: 'boss', difficulty: 'boss', title: '完成综合演练', description: '用本次复习内容完成一个可检查的小练习。' }
@@ -134,10 +135,11 @@ await assert.rejects(
 const generated = await context.taskService.generate(user.id, goal, {
   deepseekApiKey: 'sk-test-deepseek-key'
 });
-assert.equal(generated.tasks.length, 5);
+assert.equal(generated.tasks.length, 4);
 assert.equal(generated.provider, 'deepseek');
 assert.equal(generated.model, 'deepseek-v4-flash');
 assert.ok(generated.tasks.every((task) => task.status === 'todo'));
+assert.equal(generated.tasks.some((task) => task.type === 'side'), false);
 assert.equal(context.aiService.getSettings(user.id).deepseekKeyConfigured, true);
 assert.equal(deepseekRequestCount, 1);
 
@@ -147,9 +149,14 @@ const secondGoal = context.goalService.create(user.id, {
   category: '学习'
 });
 const generatedWithSavedKey = await context.taskService.generate(user.id, secondGoal);
-assert.equal(generatedWithSavedKey.tasks.length, 5);
+assert.equal(generatedWithSavedKey.tasks.length, 4);
 assert.equal(deepseekRequestCount, 2);
 assert.deepEqual(deepseekAuthorizations, ['Bearer sk-test-deepseek-key', 'Bearer sk-test-deepseek-key']);
+
+const listedGoals = context.goalService.list(user.id);
+assert.equal(listedGoals[0].id, secondGoal.id, '目标列表应按时间倒序返回，最新目标在最上方');
+assert.equal(generated.tasks.every((task) => task.goalId === goal.id), true);
+assert.equal(generatedWithSavedKey.tasks.every((task) => task.goalId === secondGoal.id), true);
 
 const before = context.gameService.getCharacter(user.id);
 const completed = context.taskService.complete(user.id, generated.tasks[0].id);
@@ -161,6 +168,30 @@ assert.equal(completed.xpGained, generated.tasks[0].xpReward);
 const completedAgain = context.taskService.complete(user.id, generated.tasks[0].id);
 assert.equal(completedAgain.xpGained, 0);
 assert.equal(completedAgain.character.xp, completed.character.xp);
+
+const dailyTask = generated.tasks.find((task) => task.type === 'daily');
+const dailyBefore = context.gameService.getCharacter(user.id);
+const completedDaily = context.taskService.complete(user.id, dailyTask.id);
+assert.equal(completedDaily.task.status, 'todo');
+assert.equal(completedDaily.task.completedToday, true);
+assert.equal(completedDaily.xpGained, dailyTask.xpReward);
+
+const completedDailyAgain = context.taskService.complete(user.id, dailyTask.id);
+assert.equal(completedDailyAgain.xpGained, 0);
+assert.equal(completedDailyAgain.character.xp, completedDaily.character.xp);
+const listedDailyTask = context.taskService.list(user.id).find((task) => task.id === dailyTask.id);
+assert.equal(listedDailyTask.status, 'todo');
+assert.equal(listedDailyTask.completedToday, true);
+assert.ok(completedDaily.character.xp > dailyBefore.xp);
+
+const bossTask = generated.tasks.find((task) => task.type === 'boss');
+const completedBoss = context.taskService.complete(user.id, bossTask.id);
+assert.equal(completedBoss.task.status, 'done');
+assert.equal(completedBoss.goal.status, 'done');
+assert.ok(completedBoss.goal.completedAt);
+const completedAfterGoalDone = context.taskService.complete(user.id, dailyTask.id);
+assert.equal(completedAfterGoalDone.xpGained, 0);
+assert.equal(completedAfterGoalDone.goal.status, 'done');
 
 const userBadges = context.badgeService.listUserBadges(user.id);
 assert.ok(userBadges.length >= 2);

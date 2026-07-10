@@ -4,12 +4,13 @@
 
 ## 1. Prompt 目标
 
-将用户输入的长期目标（如"30 天掌握 Vue 开发"）通过 DeepSeek `deepseek-v4-flash` 拆解为一组结构化的 RPG 副本任务，包含主线、支线、每日和 Boss 任务，并返回一段 NPC 引导文案，让用户有"进入副本"的游戏代入感。
+将用户输入的长期目标（如"30 天掌握 Vue 开发"）通过 DeepSeek `deepseek-v4-flash` 拆解为一组结构化的 RPG 副本任务，包含主线、每日、Boss 和可选支线任务，并返回一段 NPC 引导文案，让用户有"进入副本"的游戏代入感。
 
 具体目标：
 
-- 根据目标标题、描述和分类，自动识别目标领域（学习、健身、阅读、创作、生活等）。
-- 生成 5 个任务，固定为 1 个 main、1 个 side、2 个 daily、1 个 boss。
+- 结合目标标题、描述和分类生成专属任务，不使用本地模板或固定兜底样例。
+- 生成 3 到 6 个任务，至少包含 1 个 main、1 个 daily、1 个 boss，side 为可选任务。
+- main 和 boss 决定目标通关进度；daily 每天可以完成一次，但不影响目标是否通关。
 - 每个任务标注难度（easy / normal / hard / boss），后端根据难度统一计算 XP 奖励，模型无需决定 XP。
 - 返回一条 NPC 文案，风格为 RPG 向导鼓励语。
 - 输出为 JSON，可直接被后端 `aiService.generateTasks` 消费。
@@ -40,7 +41,8 @@ AI 必须返回以下 JSON 结构。`xpReward` 不由模型返回，后端会在
     },
     "tasks": {
       "type": "array",
-      "minItems": 5,
+      "minItems": 3,
+      "maxItems": 6,
       "items": {
         "type": "object",
         "required": ["type", "difficulty", "title", "description"],
@@ -81,9 +83,9 @@ boss   → 150 XP
 
 ```text
 main   主线任务，推进目标核心进展
-side   支线任务，辅助准备或资料收集
-daily  每日任务，可重复执行的小步行动
-boss   Boss 任务，阶段性高难度挑战
+side   支线任务，可选的辅助准备、资料收集或趣味探索
+daily  每日任务，每天可完成一次的小步行动
+boss   Boss 任务，决定目标通关的最终挑战
 ```
 
 ## 4. 完整 Prompt 示例
@@ -94,12 +96,14 @@ boss   Boss 任务，阶段性高难度挑战
 你是 LifeQuest 人生副本系统的 AI 任务生成引擎。用户会输入一个现实中的长期目标，你需要把它拆解为一组 RPG 风格的副本任务。
 
 规则：
-1. 识别目标所属领域（学习、健身、阅读、创作、生活）。
-2. 生成恰好 5 个任务，类型覆盖 main、side、daily、boss。
-3. 每个任务包含 type、difficulty、title、description 四个字段。
-4. boss 类型任务的 difficulty 必须为 boss，非 boss 类型任务不能使用 boss 难度。
-5. 返回一条 npcMessage，风格为 RPG 向导的鼓励语，不超过 40 字。
-6. 仅输出 JSON，不要输出任何解释或 Markdown 代码块标记。
+1. 只能根据用户目标现场生成任务，不得使用固定模板、通用模板或兜底样例。
+2. 生成 3 到 6 个任务，至少包含 1 个 main、1 个 daily、1 个 boss。
+3. side 为可选类型，可返回 0 到 2 个；不要为了凑数强行生成支线。
+4. daily 必须适合每天重复执行，main 和 boss 必须能体现目标核心进度。
+5. 每个任务包含 type、difficulty、title、description 四个字段。
+6. boss 类型任务的 difficulty 必须为 boss，非 boss 类型任务不能使用 boss 难度。
+7. 返回一条 npcMessage，风格为 RPG 向导的鼓励语，不超过 40 字。
+8. 仅输出 JSON，不要输出任何解释或 Markdown 代码块标记。
 ```
 
 ### 4.2 用户提示词（User Prompt 模板）
@@ -273,21 +277,22 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
   → 后端调用 https://api.deepseek.com/chat/completions
   → 使用 model=deepseek-v4-flash、thinking.disabled、response_format.json_object
   → 解析 DeepSeek 返回 JSON
-  → 校验 npcMessage、任务数量、任务类型组合、任务难度和文本长度
+  → 校验 npcMessage、任务数量、必选任务类型、任务难度和文本长度
   → 校验通过后保存该用户 API Key
   → 写入 ai_logs 和 tasks
-  → 返回任务列表与 NPC 文案
+  → 返回目标、任务列表与 NPC 文案
 ```
 
 ### 7.2 后端校验规则
 
 1. DeepSeek 必须返回合法 JSON，结构为 `{ "npcMessage": string, "tasks": Task[] }`。
-2. `tasks` 必须恰好 5 个。
-3. 类型组合必须是 1 个 `main`、1 个 `side`、2 个 `daily`、1 个 `boss`。
+2. `tasks` 必须为 3 到 6 个。
+3. 类型组合必须至少包含 1 个 `main`、1 个 `daily`、1 个 `boss`；`side` 为可选，最多 2 个。
 4. `difficulty` 必须是 `easy`、`normal`、`hard` 或 `boss`。
 5. Boss 类型任务的 `difficulty` 必须为 `boss`，非 Boss 任务不能使用 `boss` 难度。
 6. 后端根据难度计算 XP：`easy=20`、`normal=40`、`hard=80`、`boss=150`。
 7. 校验失败时不保存任务，首次传入的 API Key 也不会因为失败结果而保存。
+8. DeepSeek 返回结果不满足规则时直接失败，不会回退到本地模板任务。
 
 ### 7.3 失败处理
 
@@ -307,3 +312,4 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
 | ---- | ---------- | ------------------------------------------------ |
 | v1   | 2026-07-10 | 初始版本，定义输入输出 Schema 和示例。   |
 | v2   | 2026-07-10 | 接入 DeepSeek `deepseek-v4-flash`，补充用户级 API Key、JSON 模式和后端校验策略。 |
+| v3   | 2026-07-10 | 移除本地模板兜底，改为 AI-only 生成；主线、每日、Boss 必选，支线可选；明确每日任务和目标通关规则。 |

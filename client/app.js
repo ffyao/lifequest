@@ -51,6 +51,7 @@ const state = {
   user: null,
   authToken: localStorage.getItem('lifequest:authToken') || '',
   character: null,
+  goals: [],
   tasks: [],
   badges: [],
   userBadges: [],
@@ -59,6 +60,7 @@ const state = {
     deepseekKeyConfigured: false,
     model: 'deepseek-v4-flash'
   },
+  selectedGoalId: null,
   taskFilter: 'all',
   currentView: 'auth'
 };
@@ -109,6 +111,10 @@ const elements = {
   doneCount: document.querySelector('#doneCount'),
   badgeCount: document.querySelector('#badgeCount'),
 
+  goalList: document.querySelector('#goalList'),
+  selectedGoalTitle: document.querySelector('#selectedGoalTitle'),
+  selectedGoalDescription: document.querySelector('#selectedGoalDescription'),
+  selectedGoalMeta: document.querySelector('#selectedGoalMeta'),
   taskList: document.querySelector('#taskList'),
   badgeList: document.querySelector('#badgeList'),
   rankingList: document.querySelector('#rankingList'),
@@ -201,6 +207,10 @@ elements.goalForm.addEventListener('submit', async (event) => {
       elements.heroNpc.textContent = response.npcMessage;
     }
 
+    if (response.goal?.id) {
+      setSelectedGoal(response.goal.id, { persist: true, render: false });
+    }
+
     if (deepseekApiKey) {
       elements.deepseekApiKeyInput.value = '';
     }
@@ -281,6 +291,7 @@ function setSession(user, token) {
   }
   state.user = user;
   state.userId = user.id;
+  state.selectedGoalId = readStoredSelectedGoalId(user.id);
   localStorage.removeItem('lifequest:userId');
   elements.authHint.innerHTML = `
     <svg class="icon icon-xs"><use href="#i-check"/></svg>
@@ -295,6 +306,7 @@ function clearSession() {
   state.userId = null;
   state.user = null;
   state.character = null;
+  state.goals = [];
   state.tasks = [];
   state.badges = [];
   state.userBadges = [];
@@ -303,6 +315,7 @@ function clearSession() {
     deepseekKeyConfigured: false,
     model: 'deepseek-v4-flash'
   };
+  state.selectedGoalId = null;
   elements.deepseekApiKeyInput.value = '';
   renderAiSettings();
   localStorage.removeItem('lifequest:authToken');
@@ -333,21 +346,25 @@ async function refreshAll() {
   }
 
   try {
-    const [characterData, taskData, badgeData, rankingData] = await Promise.all([
+    const [characterData, goalData, taskData, badgeData, rankingData] = await Promise.all([
       api('/api/character'),
+      api('/api/goals'),
       api('/api/tasks'),
       api('/api/badges'),
       api('/api/ranking')
     ]);
 
     state.character = characterData.character;
+    state.goals = sortGoalsByTime(goalData.goals || []);
     state.tasks = taskData.tasks || [];
     state.badges = badgeData.badges || [];
     state.userBadges = badgeData.userBadges || [];
     state.ranking = rankingData.ranking || [];
+    syncSelectedGoal();
 
     renderCharacter();
     renderDashboard();
+    renderGoalList();
     renderTasks();
     renderBadges();
     renderRanking();
@@ -376,7 +393,11 @@ function renderLoggedOutState() {
   elements.badgeCount.textContent = '0';
   elements.npcMessage.textContent = '登录后才能查看你的副本进度';
   elements.heroNpc.textContent = '登录后才能查看你的副本进度';
-  elements.taskList.innerHTML = loggedOutEmptyState('任务列表需要登录后查看');
+  elements.goalList.innerHTML = loggedOutEmptyState('目标列表需要登录后查看');
+  elements.selectedGoalTitle.textContent = '请先登录';
+  elements.selectedGoalDescription.textContent = '登录后才能查看目标任务中心。';
+  elements.selectedGoalMeta.innerHTML = '';
+  elements.taskList.innerHTML = loggedOutEmptyState('任务中心需要登录后查看');
   elements.badgeList.innerHTML = loggedOutEmptyState('徽章墙需要登录后查看');
   elements.rankingList.innerHTML = loggedOutEmptyState('排行榜需要登录后查看');
   elements.advancedCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看高级激活码');
@@ -420,6 +441,104 @@ function loggedOutEmptyState(message) {
   `;
 }
 
+function selectedGoalStorageKey(userId = state.userId) {
+  return userId ? `lifequest:selectedGoalId:${userId}` : '';
+}
+
+function readStoredSelectedGoalId(userId = state.userId) {
+  const key = selectedGoalStorageKey(userId);
+  const storedValue = key ? Number(localStorage.getItem(key)) : 0;
+  return Number.isFinite(storedValue) && storedValue > 0 ? storedValue : null;
+}
+
+function sortGoalsByTime(goals) {
+  return [...goals].sort((left, right) => {
+    const rightTime = new Date(String(right.createdAt || '').replace(' ', 'T')).getTime() || 0;
+    const leftTime = new Date(String(left.createdAt || '').replace(' ', 'T')).getTime() || 0;
+    if (rightTime !== leftTime) {
+      return rightTime - leftTime;
+    }
+    return Number(right.id || 0) - Number(left.id || 0);
+  });
+}
+
+function setSelectedGoal(goalId, options = {}) {
+  const { persist = true, render = true } = options;
+  const normalizedGoalId = Number(goalId);
+  state.selectedGoalId = Number.isFinite(normalizedGoalId) && normalizedGoalId > 0 ? normalizedGoalId : null;
+
+  if (persist && state.userId) {
+    const key = selectedGoalStorageKey();
+    if (state.selectedGoalId) {
+      localStorage.setItem(key, String(state.selectedGoalId));
+    } else {
+      localStorage.removeItem(key);
+    }
+  }
+
+  if (render) {
+    renderGoalList();
+    renderTasks();
+  }
+}
+
+function syncSelectedGoal() {
+  const goals = state.goals || [];
+  if (goals.length === 0) {
+    setSelectedGoal(null, { persist: true, render: false });
+    return;
+  }
+
+  const currentExists = goals.some(goal => Number(goal.id) === Number(state.selectedGoalId));
+  if (currentExists) {
+    return;
+  }
+
+  const storedGoalId = readStoredSelectedGoalId();
+  const storedExists = goals.some(goal => Number(goal.id) === Number(storedGoalId));
+  setSelectedGoal(storedExists ? storedGoalId : goals[0].id, { persist: true, render: false });
+}
+
+function getSelectedGoal() {
+  return (state.goals || []).find(goal => Number(goal.id) === Number(state.selectedGoalId)) || null;
+}
+
+function getTasksForGoal(goalId) {
+  return (state.tasks || []).filter(task => Number(task.goalId) === Number(goalId));
+}
+
+function getSelectedGoalTasks() {
+  return state.selectedGoalId ? getTasksForGoal(state.selectedGoalId) : [];
+}
+
+function getGoalProgress(tasks) {
+  const requiredTasks = (tasks || []).filter(task => task.type === 'main' || task.type === 'boss');
+  const doneRequiredTasks = requiredTasks.filter(task => task.status === 'done');
+  return {
+    done: doneRequiredTasks.length,
+    total: requiredTasks.length,
+    percent: requiredTasks.length ? Math.round(doneRequiredTasks.length / requiredTasks.length * 100) : 0
+  };
+}
+
+function isGoalComplete(goal, tasks) {
+  if (goal?.status === 'done') {
+    return true;
+  }
+  const progress = getGoalProgress(tasks);
+  const hasMain = (tasks || []).some(task => task.type === 'main');
+  const hasBoss = (tasks || []).some(task => task.type === 'boss');
+  return hasMain && hasBoss && progress.total > 0 && progress.done === progress.total;
+}
+
+function isTaskDoneToday(task) {
+  const goal = task.goalId ? (state.goals || []).find(item => Number(item.id) === Number(task.goalId)) : null;
+  if (goal && isGoalComplete(goal, getTasksForGoal(goal.id))) {
+    return true;
+  }
+  return task.status === 'done' || Boolean(task.completedToday);
+}
+
 // =============================================
 // Render Functions
 // =============================================
@@ -443,8 +562,8 @@ function renderCharacter() {
 
 function renderDashboard() {
   const tasks = state.tasks || [];
-  const doneTasks = tasks.filter(task => task.status === 'done');
-  const todoTasks = tasks.filter(task => task.status !== 'done');
+  const doneTasks = tasks.filter(task => isTaskDoneToday(task));
+  const todoTasks = tasks.filter(task => !isTaskDoneToday(task));
 
   animateValue(elements.todoCount, todoTasks.length);
   animateValue(elements.doneCount, doneTasks.length);
@@ -483,18 +602,18 @@ function updateMetricBars(todo, done, badges) {
 
 function renderDifficultyStars(tasks) {
   if (!elements.levelStars) return;
-  
+
   // 根据Boss和困难任务数量计算难度（1-5星）
-  const bossCount = tasks.filter(t => t.type === 'boss' && t.status !== 'done').length;
-  const hardCount = tasks.filter(t => t.difficulty === 'hard' && t.status !== 'done').length;
+  const bossCount = tasks.filter(t => t.type === 'boss' && !isTaskDoneToday(t)).length;
+  const hardCount = tasks.filter(t => t.difficulty === 'hard' && !isTaskDoneToday(t)).length;
   const totalDifficult = bossCount * 2 + hardCount;
-  
+
   let stars = 1;
   if (totalDifficult >= 6) stars = 5;
   else if (totalDifficult >= 4) stars = 4;
   else if (totalDifficult >= 2) stars = 3;
   else if (totalDifficult >= 1) stars = 2;
-  
+
   elements.levelStars.innerHTML = '';
   for (let i = 0; i < 5; i++) {
     elements.levelStars.insertAdjacentHTML('beforeend', starSvg(i < stars));
@@ -518,9 +637,64 @@ function getRandomNpcMessage(todo, done) {
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
+function renderGoalList() {
+  const goals = state.goals || [];
+  if (goals.length === 0) {
+    elements.goalList.innerHTML = `
+      <div class="empty-state compact">
+        <div class="empty-icon">${ICONS.list}</div>
+        <h3>还没有目标</h3>
+        <p class="hint">先到目标生成页创建目标并生成副本任务。</p>
+      </div>`;
+    return;
+  }
+
+  elements.goalList.innerHTML = goals.map((goal) => {
+    const goalTasks = getTasksForGoal(goal.id);
+    const progress = getGoalProgress(goalTasks);
+    const completed = isGoalComplete(goal, goalTasks);
+    const isSelected = Number(goal.id) === Number(state.selectedGoalId);
+
+    return `
+      <button type="button" class="goal-list-card ${isSelected ? 'active' : ''}" data-goal-id="${goal.id}">
+        <span class="goal-card-title">${escapeHtml(goal.title)}</span>
+        <span class="goal-card-desc">${escapeHtml(goal.description || '暂无目标描述')}</span>
+        <span class="goal-card-meta">
+          <span>${escapeHtml(goal.category || '未分类')}</span>
+          <span>${formatDate(goal.createdAt)}</span>
+          <span>${completed ? '已通关' : `${progress.done}/${progress.total} 通关进度`}</span>
+        </span>
+        <span class="goal-card-progress">
+          <span style="width: ${completed ? 100 : progress.percent}%"></span>
+        </span>
+      </button>
+    `;
+  }).join('');
+
+  elements.goalList.querySelectorAll('[data-goal-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      setSelectedGoal(button.getAttribute('data-goal-id'));
+      showToast('已切换目标任务中心');
+    });
+  });
+}
+
 function renderTasks() {
-  let tasks = state.tasks || [];
-  
+  const selectedGoal = getSelectedGoal();
+  let tasks = getSelectedGoalTasks();
+  renderSelectedGoalSummary(selectedGoal, tasks);
+  const goalComplete = isGoalComplete(selectedGoal, tasks);
+
+  if (!selectedGoal) {
+    elements.taskList.innerHTML = `
+      <div class="empty-state" style="grid-column: 1 / -1;">
+        <div class="empty-icon">${ICONS.list}</div>
+        <h3>请选择目标</h3>
+        <p class="hint">左侧目标列表会按创建时间倒序显示，点击目标后进入任务中心。</p>
+      </div>`;
+    return;
+  }
+
   if (state.taskFilter !== 'all') {
     tasks = tasks.filter(task => task.type === state.taskFilter);
   }
@@ -529,14 +703,14 @@ function renderTasks() {
     const filterNames = { main: '主线', side: '支线', daily: '每日', boss: 'Boss' };
     const filterName = filterNames[state.taskFilter] || '';
     const emptyIcon = state.taskFilter === 'all' ? ICONS.list : ICONS.trophy;
-    
+
     elements.taskList.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <div class="empty-icon">${emptyIcon}</div>
         <h3>${filterName ? `${filterName}任务为空` : '还没有任务'}</h3>
-        <p class="hint">${filterName 
-          ? '切换其他筛选或生成新任务' 
-          : '在上方输入长期目标，生成属于你的副本任务吧'
+        <p class="hint">${filterName
+          ? '切换其他筛选，或为该目标重新生成任务'
+          : '该目标下还没有任务，请回到目标生成页生成副本任务'
         }</p>
       </div>`;
     return;
@@ -559,11 +733,24 @@ function renderTasks() {
   elements.taskList.innerHTML = tasks.map((task, index) => {
     const typeInfo = typeConfig[task.type] || { label: task.type, icon: '' };
     const diffInfo = difficultyConfig[task.difficulty] || { label: task.difficulty, color: '#909090' };
-    const isDone = task.status === 'done';
+    const completedToday = Boolean(task.completedToday);
+    const isDone = goalComplete || task.status === 'done';
+    const isLockedToday = task.type === 'daily' && completedToday;
+    const isDisabled = isDone || isLockedToday;
+    const statusText = goalComplete || task.status === 'done'
+      ? '已通关'
+      : isLockedToday
+        ? '今日已完成'
+        : '待挑战';
+    const buttonText = goalComplete || task.status === 'done'
+      ? '已通关'
+      : isLockedToday
+        ? '今日已完成'
+        : '完成';
     const typeClass = `type-${task.type}`;
 
     return `
-      <article class="task-card ${typeClass} ${isDone ? 'done' : ''}" style="animation-delay: ${index * 0.05}s">
+      <article class="task-card ${typeClass} ${isDone || isLockedToday ? 'done' : ''}" style="animation-delay: ${index * 0.05}s">
         <div class="task-body">
           <h3>
             <span class="task-type-icon">${typeInfo.icon}</span>
@@ -574,13 +761,13 @@ function renderTasks() {
             <span class="pill ${typeClass}">${typeInfo.label}</span>
             <span class="pill" style="background: rgba(255,255,255,0.05); color: ${diffInfo.color}; border-color: ${diffInfo.color}33;">${diffInfo.label}</span>
             <span class="pill" style="background: rgba(255,255,255,0.10); color: #e0e0e0; border-color: rgba(255,255,255,0.20);">+${task.xpReward || 20} XP</span>
-            <span class="pill" style="${isDone 
-              ? 'background: rgba(255,255,255,0.12); color: #c8c8c8; border-color: rgba(255,255,255,0.22);' 
-              : 'background: rgba(255,255,255,0.05); color: var(--text-muted);'}">${isDone ? '已通关' : '待挑战'}</span>
+            <span class="pill" style="${isDone || isLockedToday
+              ? 'background: rgba(255,255,255,0.12); color: #c8c8c8; border-color: rgba(255,255,255,0.22);'
+              : 'background: rgba(255,255,255,0.05); color: var(--text-muted);'}">${statusText}</span>
           </div>
         </div>
-        <button class="task-action-button" data-complete="${task.id}" ${isDone ? 'disabled' : ''}>
-          ${isDone ? '已通关' : '完成'}
+        <button class="task-action-button" data-complete="${task.id}" ${isDisabled ? 'disabled' : ''}>
+          ${buttonText}
         </button>
       </article>
     `;
@@ -589,6 +776,32 @@ function renderTasks() {
   document.querySelectorAll('[data-complete]').forEach(button => {
     button.addEventListener('click', handleCompleteTask);
   });
+}
+
+function renderSelectedGoalSummary(goal, tasks) {
+  if (!goal) {
+    elements.selectedGoalTitle.textContent = '请选择一个目标';
+    elements.selectedGoalDescription.textContent = '点击左侧目标后查看对应副本任务。';
+    elements.selectedGoalMeta.innerHTML = '';
+    return;
+  }
+
+  const progress = getGoalProgress(tasks);
+  const completed = isGoalComplete(goal, tasks);
+  const dailyCount = tasks.filter(task => task.type === 'daily').length;
+  const sideCount = tasks.filter(task => task.type === 'side').length;
+  const totalXp = tasks.reduce((sum, task) => sum + Number(task.xpReward || 0), 0);
+
+  elements.selectedGoalTitle.textContent = goal.title;
+  elements.selectedGoalDescription.textContent = goal.description || '暂无目标描述。';
+  elements.selectedGoalMeta.innerHTML = `
+    <span>${escapeHtml(goal.category || '未分类')}</span>
+    <span>创建于 ${formatDate(goal.createdAt)}</span>
+    <span>${completed ? '已通关' : `${progress.done}/${progress.total} 通关进度`}</span>
+    <span>${dailyCount} 个每日任务</span>
+    <span>${sideCount} 个支线任务</span>
+    <span>${totalXp} XP</span>
+  `;
 }
 
 async function handleCompleteTask(event) {
@@ -603,6 +816,12 @@ async function handleCompleteTask(event) {
     const response = await api(`/api/tasks/${taskId}/complete`, { method: 'PATCH' });
 
     let message = response.xpGained ? '任务完成，获得经验值' : '任务已完成，无需重复提交';
+    if (response.task?.type === 'daily' && response.task?.completedToday && !response.xpGained) {
+      message = '每日任务今天已完成，明天可再次挑战';
+    }
+    if (response.goal?.status === 'done' && !response.xpGained) {
+      message = '该目标已通关';
+    }
     if (response.unlockedBadges && response.unlockedBadges.length > 0) {
       const badgeNames = response.unlockedBadges.map(badge => badge.name).join('、');
       message += `，解锁徽章：${badgeNames}`;
@@ -647,8 +866,8 @@ function renderBadges() {
         <strong>${escapeHtml(badge.name)}</strong>
         <span class="badge-desc">${escapeHtml(badge.description)}</span>
         <span class="pill" style="
-          background: ${isUnlocked ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)'}; 
-          color: ${isUnlocked ? 'var(--accent-light)' : 'var(--text-muted)'}; 
+          background: ${isUnlocked ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)'};
+          color: ${isUnlocked ? 'var(--accent-light)' : 'var(--text-muted)'};
           border-color: ${isUnlocked ? 'rgba(255,255,255,0.22)' : 'var(--border-default)'};
         ">${isUnlocked ? '已解锁' : '未解锁'}</span>
       </article>
@@ -672,7 +891,7 @@ function renderRanking() {
   elements.rankingList.innerHTML = ranking.map(item => {
     const rank = item.rank || 0;
     const topClass = rank <= 3 ? `top-${rank}` : '';
-    
+
     // 前三名用罗马数字，其余用数字
     const rankDisplay = rank === 1 ? 'I' : rank === 2 ? 'II' : rank === 3 ? 'III' : rank;
 
@@ -870,6 +1089,18 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function formatDate(value) {
+  if (!value) return '未知时间';
+  const date = new Date(String(value).replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) {
+    return String(value).slice(0, 10);
+  }
+  return date.toLocaleDateString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit'
+  });
 }
 
 function animateValue(element, targetValue) {

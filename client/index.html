@@ -192,7 +192,7 @@
             </a>
             <a href="#tasks" class="nav-link" data-view-link="tasks">
               <svg class="icon icon-xs"><use href="#i-list"/></svg>
-              任务列表
+              目标列表
             </a>
             <a href="#badges" class="nav-link" data-view-link="badges">
               <svg class="icon icon-xs"><use href="#i-trophy"/></svg>
@@ -238,8 +238,8 @@
                   <svg class="icon icon-md"><use href="#i-sword"/></svg>
                 </div>
                 <div class="feature-text">
-                  <strong>主线 / 支线任务</strong>
-                  <span>多维度目标拆解</span>
+                  <strong>主线 / Boss 任务</strong>
+                  <span>核心通关进度</span>
                 </div>
               </div>
               <div class="feature-item">
@@ -544,35 +544,54 @@
           </form>
         </section>
 
-        <!-- 任务列表 -->
+        <!-- 目标列表与任务中心 -->
         <section id="tasks" class="panel tasks-panel glass-panel view-page" data-view="tasks">
           <div class="panel-header-wide with-action">
             <div>
-              <p class="section-label">任务中心</p>
-              <h2>主线 · 支线 · 每日 · Boss</h2>
+              <p class="section-label">目标列表</p>
+              <h2>选择目标，进入对应任务中心</h2>
             </div>
-            <button id="refreshButton" class="btn-icon-only" title="刷新任务">
+            <button id="refreshButton" class="btn-icon-only" title="刷新目标和任务">
               <svg class="icon icon-sm"><use href="#i-refresh"/></svg>
             </button>
           </div>
 
-          <div class="task-filters">
-            <button class="filter-btn active" data-filter="all">全部</button>
-            <button class="filter-btn filter-main" data-filter="main">
-              <svg class="icon icon-xs"><use href="#i-sword"/></svg> 主线
-            </button>
-            <button class="filter-btn filter-side" data-filter="side">
-              <svg class="icon icon-xs"><use href="#i-compass"/></svg> 支线
-            </button>
-            <button class="filter-btn filter-daily" data-filter="daily">
-              <svg class="icon icon-xs"><use href="#i-calendar"/></svg> 每日
-            </button>
-            <button class="filter-btn filter-boss" data-filter="boss">
-              <svg class="icon icon-xs"><use href="#i-crown"/></svg> Boss
-            </button>
-          </div>
+          <div class="goal-task-layout">
+            <aside class="goal-list-panel">
+              <div class="subsection-heading">
+                <span>已生成目标</span>
+                <small>最新在上</small>
+              </div>
+              <div id="goalList" class="goal-list"></div>
+            </aside>
 
-          <div id="taskList" class="task-grid"></div>
+            <section class="task-center-panel">
+              <div class="selected-goal-card">
+                <p class="section-label">当前任务中心</p>
+                <h3 id="selectedGoalTitle">请选择一个目标</h3>
+                <p id="selectedGoalDescription" class="selected-goal-description">点击左侧目标后查看对应副本任务。</p>
+                <div id="selectedGoalMeta" class="selected-goal-meta"></div>
+              </div>
+
+              <div class="task-filters">
+                <button class="filter-btn active" data-filter="all">全部</button>
+                <button class="filter-btn filter-main" data-filter="main">
+                  <svg class="icon icon-xs"><use href="#i-sword"/></svg> 主线
+                </button>
+                <button class="filter-btn filter-side" data-filter="side">
+                  <svg class="icon icon-xs"><use href="#i-compass"/></svg> 支线
+                </button>
+                <button class="filter-btn filter-daily" data-filter="daily">
+                  <svg class="icon icon-xs"><use href="#i-calendar"/></svg> 每日
+                </button>
+                <button class="filter-btn filter-boss" data-filter="boss">
+                  <svg class="icon icon-xs"><use href="#i-crown"/></svg> Boss
+                </button>
+              </div>
+
+              <div id="taskList" class="task-grid"></div>
+            </section>
+          </div>
         </section>
 
         <!-- 徽章墙 -->

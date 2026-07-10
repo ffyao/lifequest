@@ -75,6 +75,7 @@ function migrate(database) {
       description TEXT NOT NULL DEFAULT '',
       category TEXT NOT NULL DEFAULT '学习',
       status TEXT NOT NULL DEFAULT 'active',
+      completedAt TEXT,
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
     );
@@ -94,6 +95,18 @@ function migrate(database) {
       createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (goalId) REFERENCES goals(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS task_daily_completions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      taskId INTEGER NOT NULL,
+      completedDate TEXT NOT NULL,
+      xpGained INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (userId, taskId, completedDate),
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (taskId) REFERENCES tasks(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS badges (
@@ -127,7 +140,18 @@ function migrate(database) {
   `);
   ensureColumn(database, 'users', 'role', "TEXT NOT NULL DEFAULT 'user'");
   ensureColumn(database, 'sessions', 'expiresAt', 'TEXT');
+  ensureColumn(database, 'goals', 'completedAt', 'TEXT');
   database.exec("UPDATE sessions SET expiresAt = datetime(createdAt, '+7 days') WHERE expiresAt IS NULL");
+  database.exec(`
+    INSERT OR IGNORE INTO task_daily_completions (userId, taskId, completedDate, xpGained, createdAt)
+    SELECT userId, id, substr(completedAt, 1, 10), xpReward, completedAt
+    FROM tasks
+    WHERE type = 'daily' AND status = 'done' AND completedAt IS NOT NULL;
+
+    UPDATE tasks
+    SET status = 'todo', completedAt = NULL
+    WHERE type = 'daily' AND status = 'done';
+  `);
 }
 
 function seed(database) {
@@ -182,22 +206,6 @@ function seed(database) {
   }
 
   normalizeBadgeIcons(database);
-
-  const demoGoals = database.prepare('SELECT COUNT(*) AS count FROM goals WHERE userId = ?').get(demoUser.id).count;
-  if (demoGoals === 0) {
-    const createGoal = database.prepare(`
-      INSERT INTO goals (userId, title, description, category, status)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const result = createGoal.run(demoUser.id, '30 天掌握 Vue 项目开发', '完成 Vue 基础、组件通信和一个完整项目。', '学习', 'active');
-    const goalId = Number(result.lastInsertRowid);
-    const createTask = database.prepare(`
-      INSERT INTO tasks (userId, goalId, title, description, type, difficulty, xpReward, status, dueDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    createTask.run(demoUser.id, goalId, '建立 Vue 基础知识地图', '整理 Vue 响应式、组件和路由的核心概念。', 'main', 'normal', 40, 'todo', today());
-    createTask.run(demoUser.id, goalId, '完成组件通信小练习', '写一个父子组件传值示例。', 'daily', 'easy', 20, 'todo', today());
-  }
 
   awardInitialBadges(database, demoUser.id);
 }
@@ -262,8 +270,4 @@ function normalizeBadgeIcons(database) {
       ELSE icon
     END
   `);
-}
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
 }

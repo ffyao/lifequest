@@ -1,9 +1,18 @@
 export function createTaskService(database, gameService, aiService) {
   return {
     list(userId) {
-      return database
+      const tasks = database
         .prepare('SELECT * FROM tasks WHERE userId = ? ORDER BY status ASC, createdAt DESC, id DESC')
         .all(userId);
+      const completedTodayRows = database
+        .prepare('SELECT taskId FROM task_daily_completions WHERE userId = ? AND completedDate = ?')
+        .all(userId, today());
+      const completedTodayIds = new Set(completedTodayRows.map(row => Number(row.taskId)));
+
+      return tasks.map(task => ({
+        ...task,
+        completedToday: task.type === 'daily' && completedTodayIds.has(Number(task.id))
+      }));
     },
 
     async generate(userId, goal, options = {}) {
@@ -123,4 +132,12 @@ export function createTaskService(database, gameService, aiService) {
       return { deleted: result.changes > 0 };
     }
   };
+}
+
+function today() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
