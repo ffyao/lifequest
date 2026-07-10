@@ -60,6 +60,7 @@ function migrate(database) {
       userId INTEGER NOT NULL UNIQUE,
       nickname TEXT NOT NULL,
       career TEXT NOT NULL,
+      avatar TEXT NOT NULL DEFAULT '',
       level INTEGER NOT NULL DEFAULT 1,
       xp INTEGER NOT NULL DEFAULT 0,
       coins INTEGER NOT NULL DEFAULT 0,
@@ -141,6 +142,7 @@ function migrate(database) {
   ensureColumn(database, 'users', 'role', "TEXT NOT NULL DEFAULT 'user'");
   ensureColumn(database, 'sessions', 'expiresAt', 'TEXT');
   ensureColumn(database, 'goals', 'completedAt', 'TEXT');
+  ensureColumn(database, 'characters', 'avatar', "TEXT NOT NULL DEFAULT ''");
   database.exec("UPDATE sessions SET expiresAt = datetime(createdAt, '+7 days') WHERE expiresAt IS NULL");
   database.exec(`
     INSERT OR IGNORE INTO task_daily_completions (userId, taskId, completedDate, xpGained, createdAt)

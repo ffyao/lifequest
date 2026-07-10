@@ -13,7 +13,8 @@ export function createGameService(database, badgeService) {
 
     createOrUpdateCharacter(userId, input) {
       const nickname = String(input.nickname || '').trim();
-      const career = String(input.career || '学习者').trim();
+      const career = String(input.career || '冒险者').trim();
+      const avatar = normalizeAvatar(input.avatar);
 
       if (nickname.length < 2) {
         const error = new Error('角色昵称至少需要 2 个字符');
@@ -24,9 +25,13 @@ export function createGameService(database, badgeService) {
 
       const existing = database.prepare('SELECT id FROM characters WHERE userId = ?').get(userId);
       if (existing) {
-        database.prepare('UPDATE characters SET nickname = ?, career = ? WHERE userId = ?').run(nickname, career, userId);
+        database
+          .prepare('UPDATE characters SET nickname = ?, career = ?, avatar = ? WHERE userId = ?')
+          .run(nickname, career, avatar, userId);
       } else {
-        database.prepare('INSERT INTO characters (userId, nickname, career) VALUES (?, ?, ?)').run(userId, nickname, career);
+        database
+          .prepare('INSERT INTO characters (userId, nickname, career, avatar) VALUES (?, ?, ?, ?)')
+          .run(userId, nickname, career, avatar);
       }
 
       const unlockedBadges = badgeService.evaluate(userId);
@@ -160,6 +165,7 @@ export function createGameService(database, badgeService) {
             u.username,
             c.nickname,
             c.career,
+            c.avatar,
             c.level,
             c.xp
           FROM characters c
@@ -170,6 +176,26 @@ export function createGameService(database, badgeService) {
         .all();
     }
   };
+}
+
+function normalizeAvatar(avatar) {
+  const normalizedAvatar = String(avatar || '').trim();
+  if (!normalizedAvatar) {
+    return '';
+  }
+  if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(normalizedAvatar)) {
+    const error = new Error('头像必须是图片文件生成的数据');
+    error.statusCode = 400;
+    error.code = 'INVALID_AVATAR';
+    throw error;
+  }
+  if (normalizedAvatar.length > 220000) {
+    const error = new Error('头像图片过大');
+    error.statusCode = 400;
+    error.code = 'INVALID_AVATAR';
+    throw error;
+  }
+  return normalizedAvatar;
 }
 
 export function calculateLevel(xp) {

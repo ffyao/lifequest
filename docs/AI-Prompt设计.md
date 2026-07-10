@@ -11,6 +11,9 @@
 - 结合目标标题、描述和分类生成专属任务，不使用本地模板或固定兜底样例。
 - 生成 3 到 6 个任务，至少包含 1 个 main、1 个 daily、1 个 boss，side 为可选任务。
 - main 和 boss 决定目标通关进度；daily 每天可以完成一次，但不影响目标是否通关。
+- 任务标题和任务描述必须自然表达，不使用“任务内容：任务名称”“任务名称：...”这类字段标签格式。
+- 避免“绘制知识地图”“完成实战小目标”等高频模板化标题，要求每个标题绑定目标中的具体对象、场景或产出物。
+- 如果 DeepSeek 首次返回模板化标题，后端会携带校验失败原因要求模型重新生成一次，仍不合格才返回错误。
 - 每个任务标注难度（easy / normal / hard / boss），后端根据难度统一计算 XP 奖励，模型无需决定 XP。
 - 返回一条 NPC 文案，风格为 RPG 向导鼓励语。
 - 输出为 JSON，可直接被后端 `aiService.generateTasks` 消费。
@@ -102,8 +105,10 @@ boss   Boss 任务，决定目标通关的最终挑战
 4. daily 必须适合每天重复执行，main 和 boss 必须能体现目标核心进度。
 5. 每个任务包含 type、difficulty、title、description 四个字段。
 6. boss 类型任务的 difficulty 必须为 boss，非 boss 类型任务不能使用 boss 难度。
-7. 返回一条 npcMessage，风格为 RPG 向导的鼓励语，不超过 40 字。
-8. 仅输出 JSON，不要输出任何解释或 Markdown 代码块标记。
+7. title 和 description 不得写成“任务内容：任务名称”“任务名称：...”等字段标签格式。
+8. title 不得包含冒号，不得使用“绘制知识地图”“完成实战小目标”等高频模板化标题。
+9. 返回一条 npcMessage，风格为 RPG 向导的鼓励语，不超过 40 字。
+10. 仅输出 JSON，不要输出任何解释或 Markdown 代码块标记。
 ```
 
 ### 4.2 用户提示词（User Prompt 模板）
@@ -170,36 +175,36 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
     {
       "type": "main",
       "difficulty": "normal",
-      "title": "绘制 JavaScript 知识地图",
-      "description": "梳理语法、函数、数组和 DOM 的核心知识点，确定本周学习路线。",
+      "title": "定位 DOM 复习薄弱点",
+      "description": "用三道 DOM 操作题找出当前最容易卡住的语法和调用方式。",
       "xpReward": 40
     },
     {
       "type": "side",
       "difficulty": "easy",
-      "title": "完成资料收集",
-      "description": "整理 3 个高质量 JavaScript 教程、视频或参考资料。",
+      "title": "挑选一个调试参照页",
+      "description": "选择一个简单网页作为 DOM 练习对象，并标注需要操作的元素。",
       "xpReward": 20
     },
     {
       "type": "daily",
       "difficulty": "easy",
-      "title": "完成 25 分钟专注学习",
-      "description": "使用番茄钟完成一次无打断的 JavaScript 学习。",
+      "title": "改写一个数组例子",
+      "description": "把一个数组方法示例换成自己的数据场景，并运行确认结果。",
       "xpReward": 20
     },
     {
       "type": "daily",
       "difficulty": "normal",
-      "title": "输出一份学习笔记",
-      "description": "用自己的话总结今天学到的 3 个重点。",
+      "title": "复述一个 DOM 场景",
+      "description": "用自己的话说明一次查询元素、绑定事件和更新页面的完整过程。",
       "xpReward": 40
     },
     {
       "type": "boss",
       "difficulty": "boss",
-      "title": "完成一个实战小作品",
-      "description": "用 JavaScript 完成一个可展示的 DOM 交互小 Demo。",
+      "title": "做出事件委托清单页",
+      "description": "用事件委托完成一个可增删条目的清单页，并检查交互是否稳定。",
       "xpReward": 150
     }
   ]
@@ -227,36 +232,36 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
     {
       "type": "main",
       "difficulty": "normal",
-      "title": "制定减脂训练计划",
-      "description": "确定本周跑步频率、配速和饮食控制方案。",
+      "title": "排定三次跑步窗口",
+      "description": "结合本周空闲时间安排三次跑步，并写明每次距离和配速目标。",
       "xpReward": 40
     },
     {
       "type": "side",
       "difficulty": "easy",
-      "title": "记录身体初始状态",
-      "description": "记录体重、围度和今日运动感受，作为后续对比基准。",
+      "title": "拍下今日餐盘结构",
+      "description": "记录一餐的主食、蛋白质和蔬菜比例，找出最容易调整的一项。",
       "xpReward": 20
     },
     {
       "type": "daily",
       "difficulty": "easy",
-      "title": "完成 15 分钟热身",
-      "description": "进行动态拉伸和基础激活，避免运动损伤。",
+      "title": "激活髋膝踝关节",
+      "description": "跑前完成一轮髋部、膝盖和脚踝活动，记录身体紧绷位置。",
       "xpReward": 20
     },
     {
       "type": "daily",
       "difficulty": "normal",
-      "title": "完成一次正式跑步训练",
-      "description": "完成 30 分钟以上的慢跑或间歇跑。",
+      "title": "记录有氧心率区间",
+      "description": "完成当天有氧训练后，记录平均心率、主观疲劳和恢复感受。",
       "xpReward": 40
     },
     {
       "type": "boss",
       "difficulty": "boss",
-      "title": "完成周度挑战跑",
-      "description": "完成一次比平时更长距离或更高配速的挑战跑。",
+      "title": "跑完递进配速路线",
+      "description": "完成一次后半程略快于前半程的路线，并复盘配速是否稳定。",
       "xpReward": 150
     }
   ]
@@ -278,6 +283,7 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
   → 使用 model=deepseek-v4-flash、thinking.disabled、response_format.json_object
   → 解析 DeepSeek 返回 JSON
   → 校验 npcMessage、任务数量、必选任务类型、任务难度和文本长度
+  → 如标题模板化或格式化标签不合格，携带失败原因请求 DeepSeek 重新生成一次
   → 校验通过后保存该用户 API Key
   → 写入 ai_logs 和 tasks
   → 返回目标、任务列表与 NPC 文案
@@ -293,6 +299,8 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
 6. 后端根据难度计算 XP：`easy=20`、`normal=40`、`hard=80`、`boss=150`。
 7. 校验失败时不保存任务，首次传入的 API Key 也不会因为失败结果而保存。
 8. DeepSeek 返回结果不满足规则时直接失败，不会回退到本地模板任务。
+9. 标题不能包含冒号、字段标签或已知高频模板短语；描述不能包含“任务内容：”等字段标签格式。
+10. 对可修复的模型格式问题，后端最多追加一次 DeepSeek 重新生成请求；重试仍不合格才返回错误。
 
 ### 7.3 失败处理
 
@@ -313,3 +321,4 @@ const response = await fetch('https://api.deepseek.com/chat/completions', {
 | v1   | 2026-07-10 | 初始版本，定义输入输出 Schema 和示例。   |
 | v2   | 2026-07-10 | 接入 DeepSeek `deepseek-v4-flash`，补充用户级 API Key、JSON 模式和后端校验策略。 |
 | v3   | 2026-07-10 | 移除本地模板兜底，改为 AI-only 生成；主线、每日、Boss 必选，支线可选；明确每日任务和目标通关规则。 |
+| v4   | 2026-07-10 | 增加反模板标题约束，禁止字段标签式标题和“知识地图/实战小目标”等高频模板短语，并为可修复格式问题增加一次 AI 重新生成。 |

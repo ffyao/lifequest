@@ -394,16 +394,19 @@
               <div class="char-header">
                 <div class="char-avatar">
                   <div class="avatar-ring"></div>
-                  <div class="avatar-img">
-                    <svg class="icon icon-lg silhouette-icon"><use href="#i-silhouette"/></svg>
-                  </div>
+                  <button class="avatar-img avatar-button" id="characterAvatarButton" type="button" aria-label="选择头像图片">
+                    <span class="avatar-content" id="characterAvatarDisplay">
+                      <svg class="icon icon-lg silhouette-icon"><use href="#i-silhouette"/></svg>
+                    </span>
+                  </button>
                   <div class="avatar-level" id="characterLevel">Lv.1</div>
                 </div>
                 <div class="char-info">
                   <h2 id="characterName">读取中...</h2>
-                  <span class="char-tag" id="characterCareer">学习者</span>
+                  <span class="char-tag" id="characterMeta">点击头像选择图片文件</span>
                 </div>
               </div>
+              <input id="profileAvatarInput" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
 
               <div class="xp-container">
                 <div class="xp-header">

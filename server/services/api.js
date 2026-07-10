@@ -31,6 +31,26 @@ export async function handleApiRequest(request, response, context) {
       return;
     }
 
+    if (method === 'PUT' && pathname === '/api/profile') {
+      const currentUser = getCurrentUser();
+      const body = await readJson(request);
+      const existingCharacter = context.gameService.getCharacter(currentUser.id);
+      context.database.exec('BEGIN IMMEDIATE');
+      try {
+        const { character, unlockedBadges } = context.gameService.createOrUpdateCharacter(currentUser.id, {
+          nickname: existingCharacter.nickname,
+          career: existingCharacter.career,
+          avatar: body.avatar ?? existingCharacter.avatar
+        });
+        context.database.exec('COMMIT');
+        sendJson(response, 200, { user: currentUser, character, unlockedBadges });
+      } catch (error) {
+        context.database.exec('ROLLBACK');
+        throw error;
+      }
+      return;
+    }
+
     if (method === 'POST' && pathname === '/api/auth/logout') {
       const result = context.userService.logout(request);
       sendJson(response, 200, result);

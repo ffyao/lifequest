@@ -97,8 +97,11 @@ const elements = {
 
   refreshButton: document.querySelector('#refreshButton'),
 
+  characterAvatarButton: document.querySelector('#characterAvatarButton'),
+  profileAvatarInput: document.querySelector('#profileAvatarInput'),
+  characterAvatarDisplay: document.querySelector('#characterAvatarDisplay'),
   characterName: document.querySelector('#characterName'),
-  characterCareer: document.querySelector('#characterCareer'),
+  characterMeta: document.querySelector('#characterMeta'),
   characterLevel: document.querySelector('#characterLevel'),
   characterXp: document.querySelector('#characterXp'),
   characterCoins: document.querySelector('#characterCoins'),
@@ -224,6 +227,21 @@ elements.goalForm.addEventListener('submit', async (event) => {
   }
 });
 
+elements.characterAvatarButton.addEventListener('click', () => {
+  if (!state.authToken) {
+    showToast('请先登录后再修改头像');
+    return;
+  }
+  elements.profileAvatarInput.click();
+});
+
+elements.profileAvatarInput.addEventListener('change', async (event) => {
+  const [file] = event.target.files || [];
+  if (!file) return;
+  await saveAvatar(file);
+  event.target.value = '';
+});
+
 elements.refreshButton.addEventListener('click', async () => {
   await refreshAll();
   showToast('数据已刷新');
@@ -339,6 +357,30 @@ async function logout() {
   navigateTo('auth');
 }
 
+async function saveAvatar(file) {
+  if (!file.type.startsWith('image/')) {
+    showToast('请选择图片文件作为头像');
+    return;
+  }
+  try {
+    const avatar = await readAvatarFile(file);
+    const response = await api('/api/profile', {
+      method: 'PUT',
+      body: {
+        avatar
+      }
+    });
+    state.user = response.user;
+    state.character = response.character;
+    renderCharacter();
+    await refreshAll();
+    showToast('头像已更新');
+  } catch (error) {
+    console.error('Save avatar failed:', error);
+    showToast(error.message || '保存头像失败');
+  }
+}
+
 async function refreshAll() {
   if (!state.authToken) {
     renderLoggedOutState();
@@ -381,7 +423,9 @@ async function refreshAll() {
 function renderLoggedOutState() {
   showAuthHint('请登录已有账号，或使用有效激活码注册新账号。');
   elements.characterName.textContent = '请先登录';
-  elements.characterCareer.textContent = '未进入系统';
+  elements.characterMeta.textContent = '未进入系统';
+  elements.characterAvatarDisplay.innerHTML = '<svg class="icon icon-lg silhouette-icon"><use href="#i-silhouette"/></svg>';
+  elements.profileAvatarInput.value = '';
   elements.characterLevel.textContent = 'Lv.0';
   elements.characterXp.textContent = '0 XP';
   elements.characterCoins.textContent = '0';
@@ -547,8 +591,12 @@ function renderCharacter() {
   const char = state.character;
   if (!char) return;
 
-  elements.characterName.textContent = char.nickname || '主角';
-  elements.characterCareer.textContent = char.career || '冒险者';
+  const avatar = String(char.avatar || '').trim();
+  const username = state.user?.username || char.nickname || '主角';
+
+  elements.characterName.textContent = username;
+  elements.characterMeta.textContent = '点击头像选择图片文件';
+  elements.characterAvatarDisplay.innerHTML = renderAvatar(avatar, username, 'character-avatar-image');
   elements.characterLevel.textContent = `Lv.${char.level || 1}`;
   elements.characterXp.textContent = `${char.xp || 0} XP`;
   elements.characterCoins.textContent = char.coins || 0;
@@ -891,6 +939,8 @@ function renderRanking() {
   elements.rankingList.innerHTML = ranking.map(item => {
     const rank = item.rank || 0;
     const topClass = rank <= 3 ? `top-${rank}` : '';
+    const avatar = String(item.avatar || '').trim();
+    const username = item.username || '匿名';
 
     // 前三名用罗马数字，其余用数字
     const rankDisplay = rank === 1 ? 'I' : rank === 2 ? 'II' : rank === 3 ? 'III' : rank;
@@ -898,9 +948,9 @@ function renderRanking() {
     return `
       <article class="ranking-card ${topClass}">
         <span class="rank-number">${rankDisplay}</span>
+        <span class="rank-avatar">${renderAvatar(avatar, username, 'rank-avatar-image')}</span>
         <div>
-          <strong>${escapeHtml(item.nickname || '匿名')}</strong>
-          <span class="rank-sub">${escapeHtml(item.username)} · ${escapeHtml(item.career || '未知职业')}</span>
+          <strong>${escapeHtml(username)}</strong>
         </div>
         <span>Lv.${item.level || 1} · ${(item.xp || 0).toLocaleString()} XP</span>
       </article>
@@ -1089,6 +1139,44 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function renderAvatar(avatar, username, imageClass) {
+  if (avatar.startsWith('data:image/')) {
+    return `<img class="${imageClass}" src="${escapeHtml(avatar)}" alt="${escapeHtml(username)}的头像" />`;
+  }
+  return `<span class="avatar-initials">${escapeHtml(String(username || 'U').slice(0, 2).toUpperCase())}</span>`;
+}
+
+function readAvatarFile(file) {
+  const maxFileSize = 3 * 1024 * 1024;
+  if (file.size > maxFileSize) {
+    throw new Error('头像图片不能超过 3MB');
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = 160;
+        canvas.width = size;
+        canvas.height = size;
+
+        const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+        const sourceX = Math.max(0, (image.naturalWidth - sourceSize) / 2);
+        const sourceY = Math.max(0, (image.naturalHeight - sourceSize) / 2);
+        const context = canvas.getContext('2d');
+        context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+        resolve(canvas.toDataURL('image/webp', 0.82));
+      };
+      image.onerror = () => reject(new Error('无法读取该头像图片'));
+      image.src = String(reader.result || '');
+    };
+    reader.onerror = () => reject(new Error('无法读取该头像图片'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function formatDate(value) {

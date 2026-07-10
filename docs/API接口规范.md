@@ -84,6 +84,53 @@ POST /api/auth/login
 GET /api/auth/me
 ```
 
+### 更新头像
+
+```text
+PUT /api/profile
+```
+
+说明：该接口只更新当前登录用户的角色头像。用户名保持账号注册时的用户名，不提供修改机制；个性签名不再使用。
+
+请求：
+
+```json
+{
+  "avatar": "data:image/webp;base64,..."
+}
+```
+
+字段约束：
+
+```text
+avatar  图片文件在前端压缩后生成的 data:image 数据，可为空
+```
+
+响应：
+
+```json
+{
+  "user": {
+    "id": 1,
+    "username": "demo",
+    "role": "user",
+    "createdAt": "2026-07-09 10:00:00"
+  },
+  "character": {
+    "id": 1,
+    "userId": 1,
+    "nickname": "demo",
+    "career": "冒险者",
+    "avatar": "data:image/webp;base64,...",
+    "level": 2,
+    "xp": 160,
+    "coins": 30,
+    "streakDays": 2
+  },
+  "unlockedBadges": []
+}
+```
+
 ### 注销当前会话
 
 ```text
@@ -173,6 +220,7 @@ GET /api/character
     "userId": 1,
     "nickname": "晨星勇者",
     "career": "学习者",
+    "avatar": "data:image/webp;base64,...",
     "level": 2,
     "xp": 160,
     "coins": 30,
@@ -193,9 +241,12 @@ PUT /api/character
 ```json
 {
   "nickname": "代码法师",
-  "career": "创作者"
+  "career": "创作者",
+  "avatar": "data:image/webp;base64,..."
 }
 ```
+
+说明：`avatar` 为空表示使用默认头像；用户名来自账号注册信息，不通过角色接口修改。
 
 ## 5. AI 配置接口
 
@@ -537,6 +588,7 @@ rank
 username
 nickname
 career
+avatar
 level
 xp
 ```

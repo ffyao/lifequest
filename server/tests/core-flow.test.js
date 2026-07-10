@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { initializeDatabase } from '../services/database.js';
 import { createAppContext } from '../services/appContext.js';
+import { handleApiRequest } from '../services/api.js';
 
 let deepseekRequestCount = 0;
 const deepseekAuthorizations = [];
+const deepseekSystemPrompts = [];
+const deepseekResponseQueue = [];
 
 globalThis.fetch = async (url, options = {}) => {
   deepseekRequestCount += 1;
@@ -15,8 +18,20 @@ globalThis.fetch = async (url, options = {}) => {
   assert.equal(body.stream, false);
   assert.ok(body.messages[0].content.includes('tasks 必须返回 3 到 6 个任务'));
   assert.ok(body.messages[0].content.includes('side 为可选类型'));
+  assert.ok(body.messages[0].content.includes('不得写成“任务内容：任务名称”'));
+  assert.ok(body.messages[0].content.includes('不要使用高频模板标题'));
   assert.equal(options.headers.Authorization, 'Bearer sk-test-deepseek-key');
   deepseekAuthorizations.push(options.headers.Authorization);
+  deepseekSystemPrompts.push(body.messages[0].content);
+  const responsePayload = deepseekResponseQueue.shift() || {
+    npcMessage: 'DeepSeek 已为你开启本次人生副本。',
+    tasks: [
+      { type: 'main', difficulty: 'normal', title: '拆解学习路线', description: '列出本次复习的知识模块和每日推进顺序。' },
+      { type: 'daily', difficulty: 'easy', title: '完成专注学习', description: '完成一次二十五分钟无打断学习并记录结果。' },
+      { type: 'daily', difficulty: 'normal', title: '输出学习笔记', description: '用自己的语言总结今天最关键的三个知识点。' },
+      { type: 'boss', difficulty: 'boss', title: '完成综合演练', description: '用本次复习内容完成一个可检查的小练习。' }
+    ]
+  };
 
   return {
     ok: true,
@@ -26,15 +41,7 @@ globalThis.fetch = async (url, options = {}) => {
         choices: [
           {
             message: {
-              content: JSON.stringify({
-                npcMessage: 'DeepSeek 已为你开启本次人生副本。',
-                tasks: [
-                  { type: 'main', difficulty: 'normal', title: '拆解学习路线', description: '列出本次复习的知识模块和每日推进顺序。' },
-                  { type: 'daily', difficulty: 'easy', title: '完成专注学习', description: '完成一次二十五分钟无打断学习并记录结果。' },
-                  { type: 'daily', difficulty: 'normal', title: '输出学习笔记', description: '用自己的语言总结今天最关键的三个知识点。' },
-                  { type: 'boss', difficulty: 'boss', title: '完成综合演练', description: '用本次复习内容完成一个可检查的小练习。' }
-                ]
-              })
+              content: JSON.stringify(responsePayload)
             }
           }
         ]
@@ -120,6 +127,53 @@ context.gameService.createOrUpdateCharacter(user.id, {
   career: '学习者'
 });
 
+const avatarImage = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4TAYAAAAvAAAAAAfQ//73v/+BiOh/AAA=';
+const updatedProfile = context.gameService.createOrUpdateCharacter(user.id, {
+  nickname: '测试勇者',
+  career: '学习者',
+  avatar: avatarImage
+});
+assert.equal(updatedProfile.character.nickname, '测试勇者');
+assert.equal(updatedProfile.character.avatar, avatarImage);
+
+const profileRankingRow = context.gameService.getRanking().find((item) => item.username === user.username);
+assert.ok(profileRankingRow);
+assert.equal(profileRankingRow.avatar, avatarImage);
+assert.equal(profileRankingRow.username, user.username);
+assert.equal(Object.hasOwn(profileRankingRow, 'signature'), false);
+
+const profileLogin = context.userService.login({
+  username: user.username,
+  password: 'test1234'
+});
+const apiAvatarImage = 'data:image/png;base64,iVBORw0KGgo=';
+const profileResponse = await invokeApi('PUT', '/api/profile', profileLogin.token, { avatar: apiAvatarImage });
+assert.equal(profileResponse.statusCode, 200);
+assert.equal(profileResponse.payload.user.username, user.username);
+assert.equal(profileResponse.payload.character.avatar, apiAvatarImage);
+assert.equal(context.userService.findById(user.id).username, user.username);
+assert.equal(context.gameService.getRanking().find((item) => item.username === user.username).avatar, apiAvatarImage);
+
+assert.throws(
+  () => context.gameService.createOrUpdateCharacter(user.id, {
+    nickname: '测试勇者',
+    career: '学习者',
+    avatar: 'ABCDE'
+  }),
+  (error) => error.code === 'INVALID_AVATAR' && error.statusCode === 400
+);
+
+assert.throws(
+  () => context.gameService.createOrUpdateCharacter(user.id, {
+    nickname: '测试勇者',
+    career: '学习者',
+    avatar: `data:image/webp;base64,${'A'.repeat(220001)}`
+  }),
+  (error) => error.code === 'INVALID_AVATAR' && error.statusCode === 400
+);
+
+console.log('头像测试通过：图片头像可保存并同步到排行榜，排行榜用户名保持注册用户名');
+
 const goal = context.goalService.create(user.id, {
   title: '14 天完成 JavaScript 基础复习',
   description: '复习语法、函数、数组和 DOM 操作。',
@@ -157,6 +211,35 @@ const listedGoals = context.goalService.list(user.id);
 assert.equal(listedGoals[0].id, secondGoal.id, '目标列表应按时间倒序返回，最新目标在最上方');
 assert.equal(generated.tasks.every((task) => task.goalId === goal.id), true);
 assert.equal(generatedWithSavedKey.tasks.every((task) => task.goalId === secondGoal.id), true);
+
+const retryGoal = context.goalService.create(user.id, {
+  title: '10 天完成 CSS 布局复盘',
+  description: '复盘 Flex、Grid 和响应式布局。',
+  category: '学习'
+});
+deepseekResponseQueue.push(
+  {
+    npcMessage: '第一次生成包含模板化标题。',
+    tasks: [
+      { type: 'main', difficulty: 'normal', title: '主线任务：绘制知识地图', description: '整理布局相关概念。' },
+      { type: 'daily', difficulty: 'easy', title: '完成专注学习', description: '完成一次布局练习。' },
+      { type: 'boss', difficulty: 'boss', title: '完成实战小目标', description: '做一个响应式页面。' }
+    ]
+  },
+  {
+    npcMessage: 'DeepSeek 已重新生成更贴合目标的任务。',
+    tasks: [
+      { type: 'main', difficulty: 'normal', title: '拆开 Flex 对齐盲区', description: '用三个横纵对齐例子确认自己对主轴和交叉轴的理解。' },
+      { type: 'daily', difficulty: 'easy', title: '复盘一个卡片布局', description: '每天选一个卡片区域，说明它适合 Flex 还是 Grid。' },
+      { type: 'boss', difficulty: 'boss', title: '搭出响应式作品页', description: '完成一个桌面端和移动端都能正常阅读的作品展示页。' }
+    ]
+  }
+);
+const retryStartCount = deepseekRequestCount;
+const generatedAfterRetry = await context.taskService.generate(user.id, retryGoal);
+assert.equal(deepseekRequestCount, retryStartCount + 2);
+assert.equal(generatedAfterRetry.tasks[0].title, '拆开 Flex 对齐盲区');
+assert.ok(deepseekSystemPrompts.at(-1).includes('上一次生成未通过后端校验'));
 
 const before = context.gameService.getCharacter(user.id);
 const completed = context.taskService.complete(user.id, generated.tasks[0].id);
@@ -318,5 +401,38 @@ function authRequest(token) {
     headers: {
       authorization: `Bearer ${token}`
     }
+  };
+}
+
+async function invokeApi(method, url, token, body) {
+  const chunks = body === undefined ? [] : [Buffer.from(JSON.stringify(body))];
+  const request = {
+    method,
+    url,
+    headers: {
+      host: 'localhost:3000',
+      authorization: `Bearer ${token}`
+    },
+    async *[Symbol.asyncIterator]() {
+      yield* chunks;
+    }
+  };
+  const response = {
+    statusCode: 0,
+    headers: {},
+    body: '',
+    writeHead(statusCode, headers) {
+      this.statusCode = statusCode;
+      this.headers = headers;
+    },
+    end(payload) {
+      this.body = String(payload || '');
+    }
+  };
+
+  await handleApiRequest(request, response, context);
+  return {
+    statusCode: response.statusCode,
+    payload: response.body ? JSON.parse(response.body) : null
   };
 }

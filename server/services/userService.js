@@ -160,17 +160,22 @@ export function createUserService(database) {
 }
 
 function validateCredentials(username, password) {
-  if (!username || String(username).trim().length < 2) {
-    const error = new Error('用户名至少需要 2 个字符');
-    error.statusCode = 400;
-    error.code = 'INVALID_USERNAME';
-    throw error;
-  }
+  validateUsername(username);
 
   if (!password || String(password).length < 6) {
     const error = new Error('密码至少需要 6 个字符');
     error.statusCode = 400;
     error.code = 'INVALID_PASSWORD';
+    throw error;
+  }
+}
+
+function validateUsername(username) {
+  const normalizedUsername = String(username || '').trim();
+  if (normalizedUsername.length < 2 || normalizedUsername.length > 24) {
+    const error = new Error('用户名需要 2 到 24 个字符');
+    error.statusCode = 400;
+    error.code = 'INVALID_USERNAME';
     throw error;
   }
 }

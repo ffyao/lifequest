@@ -37,9 +37,7 @@ export function createAiService(database) {
       }
 
       const category = pickCategory(goal);
-      const aiResult = await requestDeepseekTasks(apiKey, userId, goal, category);
-      const tasks = normalizeTasks(aiResult.tasks);
-      const npcMessage = normalizeText(aiResult.npcMessage, 'NPC 引导文案', 4, 80);
+      const { aiResult, tasks, npcMessage } = await generateValidTaskSet(apiKey, userId, goal, category);
 
       const result = {
         provider: 'deepseek',
@@ -66,6 +64,31 @@ export function createAiService(database) {
   };
 }
 
+async function generateValidTaskSet(apiKey, userId, goal, category) {
+  let lastError;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const aiResult = await requestDeepseekTasks(apiKey, userId, goal, category, {
+      validationFeedback: lastError ? buildValidationFeedback(lastError) : ''
+    });
+
+    try {
+      return {
+        aiResult,
+        tasks: normalizeTasks(aiResult.tasks),
+        npcMessage: normalizeText(aiResult.npcMessage, 'NPC 引导文案', 4, 80)
+      };
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableGenerationError(error) || attempt === 1) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 function normalizeApiKey(apiKey) {
   const normalizedApiKey = String(apiKey || '').trim();
   if (normalizedApiKey.length < 10) {
@@ -84,8 +107,9 @@ function getDeepseekApiKey(database, userId) {
   return settings?.deepseekApiKey || '';
 }
 
-async function requestDeepseekTasks(apiKey, userId, goal, category) {
+async function requestDeepseekTasks(apiKey, userId, goal, category, options = {}) {
   let response;
+  const validationFeedback = String(options.validationFeedback || '').trim();
   try {
     response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
@@ -111,7 +135,12 @@ async function requestDeepseekTasks(apiKey, userId, goal, category) {
               'Task 字段：type 为 main/side/daily/boss；difficulty 为 easy/normal/hard/boss。',
               'boss 类型任务的 difficulty 必须为 boss，其余任务不能使用 boss 难度。',
               'title 为 6 到 28 个中文字符；description 为 12 到 80 个中文字符。',
-              '任务必须具体、可执行、适合用户目标，不要出现空泛口号。'
+              'title 和 description 必须是自然生成的内容，不得写成“任务内容：任务名称”“任务名称：...”等字段标签格式。',
+              'title 不得包含中文或英文冒号，不得以“主线任务”“支线任务”“每日任务”“Boss任务”等类型标签开头。',
+              '不要使用高频模板标题，不要用知识地图类、资料收集类、实战小目标类、实战小作品类通用标题。',
+              '每个 title 都要绑定用户目标中的具体对象、场景或产出物，避免通用化标题。',
+              '任务必须具体、可执行、适合用户目标，不要出现空泛口号。',
+              validationFeedback
             ].join('\n')
           },
           {
@@ -203,8 +232,8 @@ function normalizeTasks(tasks) {
     const type = normalizeTaskType(task.type);
     counts[type] += 1;
     const difficulty = normalizeDifficulty(task.difficulty, type);
-    const title = normalizeText(task.title, '任务标题', 2, 40);
-    const description = normalizeText(task.description, '任务描述', 6, 120);
+    const title = normalizeText(task.title, '任务标题', 2, 40, { field: 'title' });
+    const description = normalizeText(task.description, '任务描述', 6, 120, { field: 'description' });
     return {
       type,
       difficulty,
@@ -222,6 +251,26 @@ function normalizeTasks(tasks) {
   }
 
   return normalizedTasks;
+}
+
+function isRetryableGenerationError(error) {
+  return [
+    'DEEPSEEK_INVALID_TASKS',
+    'DEEPSEEK_INVALID_TASK_TYPES',
+    'DEEPSEEK_INVALID_TASK_TYPE',
+    'DEEPSEEK_INVALID_TASK_DIFFICULTY',
+    'DEEPSEEK_TASK_DIFFICULTY_MISMATCH',
+    'DEEPSEEK_INVALID_TASK_TEXT',
+    'DEEPSEEK_TEMPLATE_TASK_TEXT'
+  ].includes(error?.code);
+}
+
+function buildValidationFeedback(error) {
+  return [
+    `上一次生成未通过后端校验：${error.message || '任务格式不符合规则'}。`,
+    '请重新生成完整 JSON，不要复用上一版标题或描述。',
+    '尤其不要输出字段标签式标题，也不要输出通用模板化标题。'
+  ].join('\n');
 }
 
 function buildDeepseekErrorMessage(payload, status) {
@@ -270,7 +319,7 @@ function normalizeDifficulty(difficulty, type) {
   return normalizedDifficulty;
 }
 
-function normalizeText(value, name, minLength, maxLength) {
+function normalizeText(value, name, minLength, maxLength, options = {}) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (text.length < minLength || text.length > maxLength) {
     const error = new Error(`${name}不符合长度要求`);
@@ -278,7 +327,39 @@ function normalizeText(value, name, minLength, maxLength) {
     error.code = 'DEEPSEEK_INVALID_TASK_TEXT';
     throw error;
   }
+  validateGeneratedText(text, name, options.field);
   return text;
+}
+
+function validateGeneratedText(text, name, field) {
+  const labelPattern = /(任务(内容|名称|标题|描述)|主线任务|支线任务|每日任务|Boss\s*任务|BOSS\s*任务|boss\s*任务)\s*[:：]/;
+  if (labelPattern.test(text) || (field === 'title' && text.includes(':')) || (field === 'title' && text.includes('：'))) {
+    const error = new Error(`${name}不能使用字段标签或冒号格式`);
+    error.statusCode = 502;
+    error.code = 'DEEPSEEK_TEMPLATE_TASK_TEXT';
+    throw error;
+  }
+
+  if (field === 'title') {
+    const normalizedText = text.replace(/\s+/g, '');
+    const bannedPhrases = [
+      '绘制知识地图',
+      '建立知识地图',
+      '完成实战小目标',
+      '实战小目标',
+      '完成一个实战小作品',
+      '完成实战小作品',
+      '实战小作品',
+      '完成资料收集',
+      '整理参考资料'
+    ];
+    if (bannedPhrases.some(phrase => normalizedText.includes(phrase))) {
+      const error = new Error(`${name}过于模板化，请重新生成`);
+      error.statusCode = 502;
+      error.code = 'DEEPSEEK_TEMPLATE_TASK_TEXT';
+      throw error;
+    }
+  }
 }
 
 export function xpByDifficulty(difficulty) {
