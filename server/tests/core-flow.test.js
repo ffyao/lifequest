@@ -55,6 +55,8 @@ globalThis.fetch = async (url, options = {}) => {
 const database = initializeDatabase();
 const context = createAppContext(database);
 const suffix = Date.now();
+const adminUsername = String(process.env.LIFEQUEST_ADMIN_USERNAME || '').trim() || 'admin';
+const adminPassword = String(process.env.LIFEQUEST_ADMIN_PASSWORD || '').trim() || 'admin123456';
 const previousDeepseekSetting = database
   .prepare('SELECT value FROM app_settings WHERE key = ?')
   .get('deepseekApiKey');
@@ -74,11 +76,15 @@ process.on('exit', () => {
 });
 
 const adminLogin = context.userService.login({
-  username: 'admin',
-  password: 'admin123456'
+  username: adminUsername,
+  password: adminPassword
 });
 assert.equal(adminLogin.user.role, 'admin');
 assert.ok(adminLogin.token);
+const defaultSampleUserCount = database
+  .prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'user' AND username IN ('demo', 'alice', 'bob')")
+  .get().count;
+assert.equal(defaultSampleUserCount, 0);
 
 assert.throws(
   () => context.userService.register({

@@ -5,6 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 
 const rootDir = fileURLToPath(new URL('../..', import.meta.url));
 const databasePath = join(rootDir, 'server', 'data', 'lifequest.sqlite');
+const defaultAdminUsername = 'admin';
+const defaultAdminPassword = 'admin123456';
 
 export function initializeDatabase() {
   mkdirSync(dirname(databasePath), { recursive: true });
@@ -168,18 +170,10 @@ function migrate(database) {
 }
 
 function seed(database) {
-  const userCount = database.prepare('SELECT COUNT(*) AS count FROM users').get().count;
-  if (userCount === 0) {
-    const createUser = database.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
-    createUser.run('demo', 'demo123');
-    createUser.run('alice', 'alice123');
-    createUser.run('bob', 'bob123');
-  }
+  removeDefaultSampleUsers(database);
 
-  const demoUser = database.prepare('SELECT id FROM users WHERE username = ?').get('demo');
-  const aliceUser = database.prepare('SELECT id FROM users WHERE username = ?').get('alice');
-  const bobUser = database.prepare('SELECT id FROM users WHERE username = ?').get('bob');
-  const adminUser = ensureSeedUser(database, 'admin', 'admin123456', 'admin');
+  const adminConfig = getSeedAdminConfig();
+  const adminUser = ensureSeedUser(database, adminConfig.username, adminConfig.password, 'admin');
 
   ensureSeedActivationCode(database, {
     code: 'LIFEQUEST-ADV-300',
@@ -188,17 +182,6 @@ function seed(database) {
     maxUses: 300,
     createdBy: adminUser.id
   });
-
-  const characterCount = database.prepare('SELECT COUNT(*) AS count FROM characters').get().count;
-  if (characterCount === 0) {
-    const createCharacter = database.prepare(`
-      INSERT INTO characters (userId, nickname, career, level, xp, coins, streakDays)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    createCharacter.run(demoUser.id, '主角', '学习者', 2, 160, 30, 2);
-    createCharacter.run(aliceUser.id, '代码法师', '创作者', 4, 430, 80, 5);
-    createCharacter.run(bobUser.id, '健身骑士', '健身者', 3, 280, 55, 3);
-  }
 
   const badgeCount = database.prepare('SELECT COUNT(*) AS count FROM badges').get().count;
   if (badgeCount === 0) {
@@ -219,8 +202,31 @@ function seed(database) {
   }
 
   normalizeBadgeIcons(database);
+}
 
-  awardInitialBadges(database, demoUser.id);
+function getSeedAdminConfig() {
+  return {
+    username: normalizeSeedCredential(process.env.LIFEQUEST_ADMIN_USERNAME, defaultAdminUsername),
+    password: normalizeSeedCredential(process.env.LIFEQUEST_ADMIN_PASSWORD, defaultAdminPassword)
+  };
+}
+
+function normalizeSeedCredential(value, fallback) {
+  const normalized = String(value || '').trim();
+  return normalized || fallback;
+}
+
+function removeDefaultSampleUsers(database) {
+  const sampleUsers = [
+    ['demo', 'demo123'],
+    ['alice', 'alice123'],
+    ['bob', 'bob123']
+  ];
+
+  const deleteUser = database.prepare('DELETE FROM users WHERE username = ? AND password = ? AND role = ?');
+  for (const [username, password] of sampleUsers) {
+    deleteUser.run(username, password, 'user');
+  }
 }
 
 function ensureColumn(database, tableName, columnName, definition) {
@@ -258,14 +264,6 @@ function ensureSeedActivationCode(database, { code, type, remainingUses, maxUses
       VALUES (?, ?, ?, ?, ?)
     `)
     .run(code, type, remainingUses, maxUses, createdBy);
-}
-
-function awardInitialBadges(database, userId) {
-  const badges = database.prepare('SELECT id, conditionType FROM badges WHERE conditionType IN (?, ?)').all('character_created', 'goal_created');
-  const insertBadge = database.prepare('INSERT OR IGNORE INTO user_badges (userId, badgeId) VALUES (?, ?)');
-  for (const badge of badges) {
-    insertBadge.run(userId, badge.id);
-  }
 }
 
 function normalizeBadgeIcons(database) {

@@ -54,8 +54,6 @@ npm run dev
 http://localhost:3000
 ```
 
-注意：本项目默认启动 HTTP 服务，请不要使用 `https://localhost:3000`。如果浏览器提示 `SSL_ERROR_RX_RECORD_TOO_LONG`，请手动改为 `http://localhost:3000`。
-
 ## 生产部署
 
 在 Linux 服务器上部署：
@@ -88,12 +86,7 @@ http://127.0.0.1:3000
 
 ## 使用方式
 
-默认普通账号：
-
-```text
-用户名：demo
-密码：demo123
-```
+系统不会创建默认普通账号，初始账号只保留管理员账号。
 
 默认管理员账号：
 
@@ -101,6 +94,25 @@ http://127.0.0.1:3000
 用户名：admin
 密码：admin123456
 ```
+
+如需修改初始管理员账号密码，在首次启动前设置环境变量：
+
+```bash
+LIFEQUEST_ADMIN_USERNAME=your_admin LIFEQUEST_ADMIN_PASSWORD=your_password npm run dev
+```
+
+生产启动示例：
+
+```bash
+PORT=3000 LIFEQUEST_ADMIN_USERNAME=your_admin LIFEQUEST_ADMIN_PASSWORD=your_password npm start
+```
+
+说明：
+
+- `LIFEQUEST_ADMIN_USERNAME` 未设置时默认使用 `admin`。
+- `LIFEQUEST_ADMIN_PASSWORD` 未设置时默认使用 `admin123456`。
+- 如果数据库已存在，启动时会确保该管理员账号存在，并同步更新对应账号的管理员密码。
+- 普通用户需要通过管理员生成的激活码注册。
 
 默认高级激活码：
 
