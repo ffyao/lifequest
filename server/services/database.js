@@ -137,6 +137,17 @@ function migrate(database) {
       FOREIGN KEY (badgeId) REFERENCES badges(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS friendships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      friendId INTEGER NOT NULL,
+      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (userId, friendId),
+      CHECK (userId <> friendId),
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (friendId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS ai_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       userId INTEGER NOT NULL,
@@ -151,6 +162,10 @@ function migrate(database) {
   ensureColumn(database, 'sessions', 'expiresAt', 'TEXT');
   ensureColumn(database, 'goals', 'completedAt', 'TEXT');
   ensureColumn(database, 'characters', 'avatar', "TEXT NOT NULL DEFAULT ''");
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_friendships_user_friend ON friendships(userId, friendId);
+    CREATE INDEX IF NOT EXISTS idx_characters_ranking ON characters(xp DESC, level DESC, id ASC);
+  `);
   database.exec("UPDATE sessions SET expiresAt = datetime(createdAt, '+7 days') WHERE expiresAt IS NULL");
   database.exec(`
     INSERT OR IGNORE INTO task_daily_completions (userId, taskId, completedDate, xpGained, createdAt)

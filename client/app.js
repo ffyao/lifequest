@@ -56,6 +56,17 @@ const state = {
   badges: [],
   userBadges: [],
   ranking: [],
+  rankingPagination: {
+    scope: 'global',
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 1,
+    hasPrevious: false,
+    hasMore: false
+  },
+  friends: [],
+  friendSearchResults: [],
   aiSettings: {
     deepseekKeyConfigured: false,
     model: 'deepseek-v4-flash'
@@ -65,8 +76,8 @@ const state = {
   currentView: 'auth'
 };
 
-const validViews = new Set(['home', 'auth', 'dashboard', 'goals', 'tasks', 'badges', 'ranking', 'admin']);
-const protectedViews = new Set(['home', 'dashboard', 'goals', 'tasks', 'badges', 'ranking', 'admin']);
+const validViews = new Set(['home', 'auth', 'dashboard', 'goals', 'tasks', 'badges', 'ranking', 'friends', 'admin']);
+const protectedViews = new Set(['home', 'dashboard', 'goals', 'tasks', 'badges', 'ranking', 'friends', 'admin']);
 
 // =============================================
 // DOM Cache
@@ -120,6 +131,15 @@ const elements = {
   taskList: document.querySelector('#taskList'),
   badgeList: document.querySelector('#badgeList'),
   rankingList: document.querySelector('#rankingList'),
+  rankingScopeButtons: document.querySelectorAll('[data-ranking-scope]'),
+  rankingPrevButton: document.querySelector('#rankingPrevButton'),
+  rankingNextButton: document.querySelector('#rankingNextButton'),
+  rankingPageInfo: document.querySelector('#rankingPageInfo'),
+  friendSearchForm: document.querySelector('#friendSearchForm'),
+  friendSearchInput: document.querySelector('#friendSearchInput'),
+  friendSearchResults: document.querySelector('#friendSearchResults'),
+  friendList: document.querySelector('#friendList'),
+  friendHint: document.querySelector('#friendHint'),
   authOnly: document.querySelectorAll('.auth-only'),
   adminOnly: document.querySelectorAll('.admin-only'),
   refreshActivationCodesButton: document.querySelector('#refreshActivationCodesButton'),
@@ -242,13 +262,53 @@ elements.refreshButton.addEventListener('click', async () => {
   showToast('数据已刷新');
 });
 
-document.querySelectorAll('.filter-btn').forEach(btn => {
+document.querySelectorAll('.task-filters .filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.task-filters .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.taskFilter = btn.dataset.filter;
     renderTasks();
   });
+});
+
+elements.rankingScopeButtons.forEach(button => {
+  button.addEventListener('click', async () => {
+    state.rankingPagination.scope = button.dataset.rankingScope || 'global';
+    state.rankingPagination.page = 1;
+    await loadRanking();
+    renderRanking();
+  });
+});
+
+elements.rankingPrevButton.addEventListener('click', async () => {
+  if (!state.rankingPagination.hasPrevious) return;
+  state.rankingPagination.page -= 1;
+  await loadRanking();
+  renderRanking();
+});
+
+elements.rankingNextButton.addEventListener('click', async () => {
+  if (!state.rankingPagination.hasMore) return;
+  state.rankingPagination.page += 1;
+  await loadRanking();
+  renderRanking();
+});
+
+elements.friendSearchForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  await searchFriends();
+});
+
+elements.friendSearchResults.addEventListener('click', async (event) => {
+  const addButton = event.target.closest('[data-add-friend-id]');
+  if (!addButton) return;
+  await addFriend(addButton.dataset.addFriendId);
+});
+
+elements.friendList.addEventListener('click', async (event) => {
+  const removeButton = event.target.closest('[data-remove-friend-id]');
+  if (!removeButton) return;
+  await removeFriend(removeButton.dataset.removeFriendId);
 });
 
 elements.refreshActivationCodesButton.addEventListener('click', async () => {
@@ -335,6 +395,17 @@ function clearSession() {
   state.badges = [];
   state.userBadges = [];
   state.ranking = [];
+  state.rankingPagination = {
+    scope: 'global',
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 1,
+    hasPrevious: false,
+    hasMore: false
+  };
+  state.friends = [];
+  state.friendSearchResults = [];
   state.aiSettings = {
     deepseekKeyConfigured: false,
     model: 'deepseek-v4-flash'
@@ -394,12 +465,13 @@ async function refreshAll() {
   }
 
   try {
-    const [characterData, goalData, taskData, badgeData, rankingData] = await Promise.all([
+    const [characterData, goalData, taskData, badgeData, rankingData, friendData] = await Promise.all([
       api('/api/character'),
       api('/api/goals'),
       api('/api/tasks'),
       api('/api/badges'),
-      api('/api/ranking')
+      fetchRanking(),
+      api('/api/friends')
     ]);
 
     state.character = characterData.character;
@@ -408,6 +480,8 @@ async function refreshAll() {
     state.badges = badgeData.badges || [];
     state.userBadges = badgeData.userBadges || [];
     state.ranking = rankingData.ranking || [];
+    state.rankingPagination = rankingData.pagination || state.rankingPagination;
+    state.friends = friendData.friends || [];
     syncSelectedGoal();
 
     renderCharacter();
@@ -416,6 +490,7 @@ async function refreshAll() {
     renderTasks();
     renderBadges();
     renderRanking();
+    renderFriends();
   } catch (error) {
     console.error('Refresh failed:', error);
     if (error.code === 'UNAUTHORIZED' || error.code === 'SESSION_EXPIRED') {
@@ -450,6 +525,13 @@ function renderLoggedOutState() {
   elements.taskList.innerHTML = loggedOutEmptyState('任务中心需要登录后查看');
   elements.badgeList.innerHTML = loggedOutEmptyState('徽章墙需要登录后查看');
   elements.rankingList.innerHTML = loggedOutEmptyState('排行榜需要登录后查看');
+  elements.rankingPageInfo.textContent = '第 1 页';
+  elements.rankingPrevButton.disabled = true;
+  elements.rankingNextButton.disabled = true;
+  elements.friendSearchResults.innerHTML = loggedOutEmptyState('好友搜索需要登录后使用');
+  elements.friendList.innerHTML = loggedOutEmptyState('好友列表需要登录后查看');
+  elements.friendSearchInput.value = '';
+  elements.friendHint.textContent = '登录后可以搜索用户名并单向添加好友。';
   elements.adminDeepseekHint.textContent = '管理员登录后配置全局 DeepSeek API Key';
   elements.adminDeepseekApiKeyInput.value = '';
   elements.advancedCodeList.innerHTML = loggedOutEmptyState('管理员登录后查看高级激活码');
@@ -961,15 +1043,51 @@ function renderBadges() {
   }).join('');
 }
 
+function fetchRanking() {
+  const { scope, page, pageSize } = state.rankingPagination;
+  const params = new URLSearchParams({
+    scope,
+    page: String(page),
+    pageSize: String(pageSize)
+  });
+  return api(`/api/ranking?${params.toString()}`);
+}
+
+async function loadRanking() {
+  if (!state.authToken) return false;
+
+  try {
+    const data = await fetchRanking();
+    state.ranking = data.ranking || [];
+    state.rankingPagination = data.pagination || state.rankingPagination;
+    return true;
+  } catch (error) {
+    console.error('Load ranking failed:', error);
+    showToast(error.message || '加载排行榜失败');
+    return false;
+  }
+}
+
 function renderRanking() {
   const ranking = state.ranking || [];
+  const pagination = state.rankingPagination;
+
+  elements.rankingScopeButtons.forEach(button => {
+    button.classList.toggle('active', button.dataset.rankingScope === pagination.scope);
+  });
+  elements.rankingPrevButton.disabled = !pagination.hasPrevious;
+  elements.rankingNextButton.disabled = !pagination.hasMore;
+  elements.rankingPageInfo.textContent = `第 ${pagination.page} / ${pagination.totalPages || 1} 页 · 共 ${pagination.total || 0} 人`;
 
   if (ranking.length === 0) {
+    const hint = pagination.scope === 'friends'
+      ? '好友榜只展示你和单向添加的好友，先到好友管理页添加好友吧'
+      : '完成更多任务，争夺排行榜第一吧';
     elements.rankingList.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">${ICONS.medal}</div>
         <h3>排行榜暂无数据</h3>
-        <p class="hint">完成更多任务，争夺排行榜第一吧</p>
+        <p class="hint">${escapeHtml(hint)}</p>
       </div>`;
     return;
   }
@@ -994,6 +1112,153 @@ function renderRanking() {
       </article>
     `;
   }).join('');
+}
+
+async function loadFriends() {
+  if (!state.authToken) return false;
+
+  try {
+    const data = await api('/api/friends');
+    state.friends = data.friends || [];
+    renderFriends();
+    return true;
+  } catch (error) {
+    console.error('Load friends failed:', error);
+    showToast(error.message || '加载好友列表失败');
+    return false;
+  }
+}
+
+async function searchFriends() {
+  const keyword = elements.friendSearchInput.value.trim();
+  if (!keyword) {
+    showToast('请输入要搜索的用户名');
+    elements.friendSearchInput.focus();
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({ username: keyword });
+    const data = await api(`/api/friends/search?${params.toString()}`);
+    state.friendSearchResults = data.results || [];
+    renderFriendSearchResults();
+  } catch (error) {
+    console.error('Search friends failed:', error);
+    showToast(error.message || '搜索好友失败');
+  }
+}
+
+async function addFriend(friendId) {
+  const normalizedFriendId = Number(friendId);
+  if (!Number.isInteger(normalizedFriendId) || normalizedFriendId <= 0) {
+    showToast('好友 ID 无效');
+    return;
+  }
+
+  try {
+    const data = await api('/api/friends', {
+      method: 'POST',
+      body: { friendId: normalizedFriendId }
+    });
+    state.friends = data.friends || [];
+    state.friendSearchResults = state.friendSearchResults.map((friend) => (
+      friend.id === normalizedFriendId ? { ...friend, isFriend: true } : friend
+    ));
+    state.rankingPagination.page = 1;
+    await loadRanking();
+    renderFriends();
+    renderFriendSearchResults();
+    renderRanking();
+    showToast('好友已添加');
+  } catch (error) {
+    console.error('Add friend failed:', error);
+    showToast(error.message || '添加好友失败');
+  }
+}
+
+async function removeFriend(friendId) {
+  const normalizedFriendId = Number(friendId);
+  if (!Number.isInteger(normalizedFriendId) || normalizedFriendId <= 0) {
+    showToast('好友 ID 无效');
+    return;
+  }
+
+  if (!window.confirm('确定从好友列表中移除该用户吗？')) {
+    return;
+  }
+
+  try {
+    const data = await api(`/api/friends/${normalizedFriendId}`, {
+      method: 'DELETE'
+    });
+    state.friends = data.friends || [];
+    state.friendSearchResults = state.friendSearchResults.map((friend) => (
+      friend.id === normalizedFriendId ? { ...friend, isFriend: false } : friend
+    ));
+    state.rankingPagination.page = 1;
+    await loadRanking();
+    renderFriends();
+    renderFriendSearchResults();
+    renderRanking();
+    showToast('好友已移除');
+  } catch (error) {
+    console.error('Remove friend failed:', error);
+    showToast(error.message || '移除好友失败');
+  }
+}
+
+function renderFriends() {
+  const friends = state.friends || [];
+  elements.friendHint.textContent = friends.length
+    ? `已单向添加 ${friends.length} 位好友，可在排行榜切换到好友榜查看。`
+    : '单向添加好友后，可在排行榜切换到好友榜查看自己和已添加用户的排名。';
+
+  if (!elements.friendSearchResults.innerHTML.trim()) {
+    elements.friendSearchResults.innerHTML = emptyFriendState('输入用户名搜索好友。');
+  }
+
+  elements.friendList.innerHTML = friends.length
+    ? friends.map(friend => renderFriendCard(friend, 'remove')).join('')
+    : emptyFriendState('暂无好友，搜索用户名添加好友。');
+}
+
+function renderFriendSearchResults() {
+  const results = state.friendSearchResults || [];
+  elements.friendSearchResults.innerHTML = results.length
+    ? results.map(friend => renderFriendCard(friend, 'add')).join('')
+    : emptyFriendState('没有找到匹配用户。');
+}
+
+function renderFriendCard(friend, mode) {
+  const avatar = String(friend.avatar || '').trim();
+  const username = friend.username || '匿名';
+  const level = Number(friend.level || 1);
+  const xp = Number(friend.xp || 0);
+  const isFriend = Boolean(friend.isFriend);
+  const action = mode === 'add'
+    ? `<button type="button" class="btn-secondary btn-sm" data-add-friend-id="${Number(friend.id)}" ${isFriend ? 'disabled' : ''}>${isFriend ? '已添加' : '添加'}</button>`
+    : `<button type="button" class="btn-danger btn-sm" data-remove-friend-id="${Number(friend.id)}">移除</button>`;
+
+  return `
+    <article class="friend-card">
+      <span class="rank-avatar">${renderAvatar(avatar, username, 'rank-avatar-image')}</span>
+      <div>
+        <strong>${escapeHtml(username)}</strong>
+        <span>Lv.${level} · ${xp.toLocaleString()} XP</span>
+      </div>
+      ${action}
+    </article>
+  `;
+}
+
+function emptyFriendState(message) {
+  return `
+    <div class="empty-state">
+      <div class="empty-icon">${ICONS.list}</div>
+      <h3>暂无数据</h3>
+      <p class="hint">${escapeHtml(message)}</p>
+    </div>
+  `;
 }
 
 async function loadActivationCodes() {
@@ -1239,6 +1504,14 @@ function setActiveView(view) {
   if (targetView === 'admin') {
     loadAiSettings();
     loadActivationCodes();
+  }
+  if (targetView === 'friends') {
+    loadFriends();
+  }
+  if (targetView === 'ranking') {
+    loadRanking().then((loaded) => {
+      if (loaded) renderRanking();
+    });
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });

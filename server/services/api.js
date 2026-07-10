@@ -197,9 +197,41 @@ export async function handleApiRequest(request, response, context) {
       return;
     }
 
+    if (method === 'GET' && pathname === '/api/friends/search') {
+      const results = context.friendService.search(getCurrentUserId(), url.searchParams.get('username'));
+      sendJson(response, 200, { results });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/friends') {
+      const friends = context.friendService.list(getCurrentUserId());
+      sendJson(response, 200, { friends });
+      return;
+    }
+
+    if (method === 'POST' && pathname === '/api/friends') {
+      const friend = context.friendService.add(getCurrentUserId(), (await readJson(request)).friendId);
+      const friends = context.friendService.list(getCurrentUserId());
+      sendJson(response, 201, { friend, friends });
+      return;
+    }
+
+    if (method === 'DELETE' && /^\/api\/friends\/\d+$/.test(pathname)) {
+      const friendId = requireNumber(pathname.split('/').at(-1), 'friendId');
+      const result = context.friendService.remove(getCurrentUserId(), friendId);
+      const friends = context.friendService.list(getCurrentUserId());
+      sendJson(response, 200, { ...result, friends });
+      return;
+    }
+
     if (method === 'GET' && pathname === '/api/ranking') {
-      const ranking = context.gameService.getRanking();
-      sendJson(response, 200, { ranking });
+      const currentUser = getCurrentUser();
+      const result = context.gameService.getRanking(currentUser.id, {
+        scope: url.searchParams.get('scope'),
+        page: url.searchParams.get('page'),
+        pageSize: url.searchParams.get('pageSize')
+      });
+      sendJson(response, 200, result);
       return;
     }
 

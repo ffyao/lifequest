@@ -157,25 +157,123 @@ export function createGameService(database, badgeService) {
       }
     },
 
-    getRanking() {
-      return database
-        .prepare(`
-          SELECT
-            ROW_NUMBER() OVER (ORDER BY c.xp DESC, c.level DESC, c.id ASC) AS rank,
-            u.username,
-            c.nickname,
-            c.career,
-            c.avatar,
-            c.level,
-            c.xp
-          FROM characters c
-          JOIN users u ON u.id = c.userId
-          ORDER BY c.xp DESC, c.level DESC, c.id ASC
-          LIMIT 20
-        `)
-        .all();
+    getRanking(userId, input = {}) {
+      const pagination = normalizeRankingPagination(input);
+      const offset = (pagination.page - 1) * pagination.pageSize;
+      const isFriendScope = pagination.scope === 'friends';
+
+      const total = isFriendScope
+        ? database
+          .prepare(`
+            SELECT COUNT(*) AS count
+            FROM characters c
+            WHERE c.userId = ?
+               OR EXISTS (
+                 SELECT 1
+                 FROM friendships f
+                 WHERE f.userId = ? AND f.friendId = c.userId
+               )
+          `)
+          .get(userId, userId).count
+        : database
+          .prepare('SELECT COUNT(*) AS count FROM characters')
+          .get().count;
+
+      const ranking = (isFriendScope
+        ? database
+          .prepare(`
+            SELECT *
+            FROM (
+              SELECT
+                ROW_NUMBER() OVER (ORDER BY c.xp DESC, c.level DESC, c.id ASC) AS rank,
+                u.id AS userId,
+                u.username,
+                c.nickname,
+                c.career,
+                c.avatar,
+                c.level,
+                c.xp
+              FROM characters c
+              JOIN users u ON u.id = c.userId
+              WHERE c.userId = ?
+                 OR EXISTS (
+                   SELECT 1
+                   FROM friendships f
+                   WHERE f.userId = ? AND f.friendId = c.userId
+                 )
+            )
+            ORDER BY rank ASC
+            LIMIT ? OFFSET ?
+          `)
+          .all(userId, userId, pagination.pageSize, offset)
+        : database
+          .prepare(`
+            SELECT *
+            FROM (
+              SELECT
+                ROW_NUMBER() OVER (ORDER BY c.xp DESC, c.level DESC, c.id ASC) AS rank,
+                u.id AS userId,
+                u.username,
+                c.nickname,
+                c.career,
+                c.avatar,
+                c.level,
+                c.xp
+              FROM characters c
+              JOIN users u ON u.id = c.userId
+            )
+            ORDER BY rank ASC
+            LIMIT ? OFFSET ?
+          `)
+          .all(pagination.pageSize, offset))
+        .map((item) => ({
+          ...item,
+          rank: Number(item.rank),
+          userId: Number(item.userId),
+          level: Number(item.level || 1),
+          xp: Number(item.xp || 0)
+        }));
+
+      return {
+        ranking,
+        pagination: {
+          ...pagination,
+          total: Number(total || 0),
+          totalPages: Math.max(1, Math.ceil(Number(total || 0) / pagination.pageSize)),
+          hasPrevious: pagination.page > 1,
+          hasMore: offset + ranking.length < Number(total || 0)
+        }
+      };
     }
   };
+}
+
+function normalizeRankingPagination(input) {
+  const scope = String(input.scope || 'global').trim();
+  if (!['global', 'friends'].includes(scope)) {
+    const error = new Error('排行榜范围必须是 global 或 friends');
+    error.statusCode = 400;
+    error.code = 'INVALID_RANKING_SCOPE';
+    throw error;
+  }
+
+  const page = Number(input.page || 1);
+  if (!Number.isInteger(page) || page < 1) {
+    const error = new Error('页码必须是正整数');
+    error.statusCode = 400;
+    error.code = 'INVALID_PAGE';
+    throw error;
+  }
+
+  const pageSize = Number(input.pageSize || 20);
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) {
+    const error = new Error('每页数量必须是 1 到 50 的整数');
+    error.statusCode = 400;
+    error.code = 'INVALID_PAGE_SIZE';
+    throw error;
+  }
+
+  return { scope, page, pageSize };
 }
 
 function normalizeAvatar(avatar) {

@@ -202,6 +202,10 @@
               <svg class="icon icon-xs"><use href="#i-ranking"/></svg>
               排行榜
             </a>
+            <a href="#friends" class="nav-link" data-view-link="friends">
+              <svg class="icon icon-xs"><use href="#i-list"/></svg>
+              好友管理
+            </a>
             <a href="#admin" class="nav-link admin-only is-hidden" data-view-link="admin">
               <svg class="icon icon-xs"><use href="#i-key"/></svg>
               激活码管理
@@ -608,7 +612,47 @@
             <p class="section-label">竞技场</p>
             <h2>勇者排行榜</h2>
           </div>
+          <div class="ranking-toolbar">
+            <div class="ranking-scope-switch" role="group" aria-label="排行榜范围">
+              <button type="button" class="filter-btn active" data-ranking-scope="global">总榜</button>
+              <button type="button" class="filter-btn" data-ranking-scope="friends">好友榜</button>
+            </div>
+            <div class="ranking-pagination">
+              <button type="button" id="rankingPrevButton" class="btn-secondary btn-sm">上一页</button>
+              <span id="rankingPageInfo" class="pagination-info">第 1 页</span>
+              <button type="button" id="rankingNextButton" class="btn-secondary btn-sm">下一页</button>
+            </div>
+          </div>
           <div id="rankingList" class="ranking-list"></div>
+        </section>
+
+        <!-- 好友管理 -->
+        <section id="friends" class="panel friends-panel glass-panel view-page" data-view="friends">
+          <div class="panel-header-center">
+            <p class="section-label">同行者</p>
+            <h2>好友管理</h2>
+          </div>
+          <form id="friendSearchForm" class="friend-search-form">
+            <input id="friendSearchInput" type="text" placeholder="输入用户名搜索好友" autocomplete="off" class="input-field" />
+            <button type="submit" class="btn-primary btn-sm">搜索</button>
+          </form>
+          <p id="friendHint" class="auth-hint">单向添加好友后，可在排行榜切换到好友榜查看自己和已添加用户的排名。</p>
+          <div class="friends-layout">
+            <article class="friend-panel">
+              <div class="panel-header-center">
+                <p class="section-label">搜索结果</p>
+                <h3>添加好友</h3>
+              </div>
+              <div id="friendSearchResults" class="friend-list"></div>
+            </article>
+            <article class="friend-panel">
+              <div class="panel-header-center">
+                <p class="section-label">我的好友</p>
+                <h3>已添加列表</h3>
+              </div>
+              <div id="friendList" class="friend-list"></div>
+            </article>
+          </div>
         </section>
 
         <!-- 管理员工具 -->

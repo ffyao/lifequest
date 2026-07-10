@@ -198,7 +198,7 @@ database.prepare('UPDATE characters SET xp = 999999, level = 99 WHERE userId = ?
 assert.equal(updatedProfile.character.nickname, '测试勇者');
 assert.equal(updatedProfile.character.avatar, avatarImage);
 
-const profileRankingRow = context.gameService.getRanking().find((item) => item.username === user.username);
+const profileRankingRow = context.gameService.getRanking(user.id).ranking.find((item) => item.username === user.username);
 assert.ok(profileRankingRow);
 assert.equal(profileRankingRow.avatar, avatarImage);
 assert.equal(profileRankingRow.username, user.username);
@@ -214,7 +214,7 @@ assert.equal(profileResponse.statusCode, 200);
 assert.equal(profileResponse.payload.user.username, user.username);
 assert.equal(profileResponse.payload.character.avatar, apiAvatarImage);
 assert.equal(context.userService.findById(user.id).username, user.username);
-assert.equal(context.gameService.getRanking().find((item) => item.username === user.username).avatar, apiAvatarImage);
+assert.equal(context.gameService.getRanking(user.id).ranking.find((item) => item.username === user.username).avatar, apiAvatarImage);
 
 assert.throws(
   () => context.gameService.createOrUpdateCharacter(user.id, {
@@ -235,6 +235,48 @@ assert.throws(
 );
 
 console.log('头像测试通过：图片头像可保存并同步到排行榜，排行榜用户名保持注册用户名');
+
+const globalRankingPage = context.gameService.getRanking(user.id, { scope: 'global', page: 1, pageSize: 2 });
+assert.equal(globalRankingPage.pagination.scope, 'global');
+assert.equal(globalRankingPage.pagination.pageSize, 2);
+assert.ok(globalRankingPage.ranking.length <= 2);
+assert.ok(globalRankingPage.pagination.total >= 3);
+
+const initialFriendRanking = context.gameService.getRanking(user.id, { scope: 'friends', page: 1, pageSize: 20 });
+assert.equal(initialFriendRanking.pagination.scope, 'friends');
+assert.deepEqual(initialFriendRanking.ranking.map((item) => item.userId), [user.id]);
+
+const friendSearchResponse = await invokeApi('GET', `/api/friends/search?username=${encodeURIComponent(advancedUser.user.username)}`, profileLogin.token);
+assert.equal(friendSearchResponse.statusCode, 200);
+assert.ok(friendSearchResponse.payload.results.some((item) => item.id === advancedUser.user.id && item.isFriend === false));
+
+const addFriendResponse = await invokeApi('POST', '/api/friends', profileLogin.token, { friendId: advancedUser.user.id });
+assert.equal(addFriendResponse.statusCode, 201);
+assert.ok(addFriendResponse.payload.friends.some((item) => item.id === advancedUser.user.id));
+
+const duplicateFriendResponse = await invokeApi('POST', '/api/friends', profileLogin.token, { friendId: advancedUser.user.id });
+assert.equal(duplicateFriendResponse.statusCode, 201);
+assert.equal(duplicateFriendResponse.payload.friends.filter((item) => item.id === advancedUser.user.id).length, 1);
+
+const friendRankingResponse = await invokeApi('GET', '/api/ranking?scope=friends&page=1&pageSize=20', profileLogin.token);
+assert.equal(friendRankingResponse.statusCode, 200);
+assert.equal(friendRankingResponse.payload.pagination.scope, 'friends');
+assert.ok(friendRankingResponse.payload.ranking.some((item) => item.userId === user.id));
+assert.ok(friendRankingResponse.payload.ranking.some((item) => item.userId === advancedUser.user.id));
+assert.ok(friendRankingResponse.payload.ranking.every((item) => [user.id, advancedUser.user.id].includes(item.userId)));
+
+const globalRankingResponse = await invokeApi('GET', '/api/ranking?scope=global&page=1&pageSize=2', profileLogin.token);
+assert.equal(globalRankingResponse.statusCode, 200);
+assert.equal(globalRankingResponse.payload.pagination.pageSize, 2);
+assert.ok(globalRankingResponse.payload.ranking.length <= 2);
+
+const removeFriendResponse = await invokeApi('DELETE', `/api/friends/${advancedUser.user.id}`, profileLogin.token);
+assert.equal(removeFriendResponse.statusCode, 200);
+assert.ok(removeFriendResponse.payload.friends.every((item) => item.id !== advancedUser.user.id));
+const friendRankingAfterRemove = context.gameService.getRanking(user.id, { scope: 'friends', page: 1, pageSize: 20 });
+assert.deepEqual(friendRankingAfterRemove.ranking.map((item) => item.userId), [user.id]);
+
+console.log('好友测试通过：用户名搜索、单向添加、好友榜、分页和移除好友生效');
 
 const goal = context.goalService.create(user.id, {
   title: '14 天完成 JavaScript 基础复习',
